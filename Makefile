@@ -20,7 +20,6 @@ telos-runtime: $(BIN_DIR)
 	$(MAKE) -C telos-runtime all
 	cp telos-runtime/bin/bpf_lsm.o $(BIN_DIR)/
 	cp telos-runtime/bin/telos_daemon $(BIN_DIR)/
-	cp telos-runtime/bin/telos_ctrl $(BIN_DIR)/
 
 hyperion-xdp: $(BIN_DIR)
 	@echo "Building Hyperion XDP..."
@@ -29,8 +28,8 @@ hyperion-xdp: $(BIN_DIR)
 
 telos-lang: $(BIN_DIR)
 	@echo "Building Telos Lang..."
-	cd telos-lang && cargo build --release
-	cp telos-lang/target/release/telos-lang $(BIN_DIR)/ || cp telos-lang/target/release/telos_lang $(BIN_DIR)/
+	cd telos-lang/telosc && cargo build --release
+	cp telos-lang/telosc/target/release/telosc $(BIN_DIR)/ || cp telos-lang/telosc/target/release/telos_lang $(BIN_DIR)/
 
 clean:
 	rm -rf $(BIN_DIR)
