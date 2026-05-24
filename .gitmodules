@@ -1,0 +1,3 @@
+[submodule "sentinel-vmi"]
+	path = sentinel-vmi
+	url = https://github.com/nevinshine/sentinel-vmi.git
