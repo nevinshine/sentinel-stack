@@ -118,5 +118,25 @@ Execute the binary. The `bpf_lsm` hook will intercept the `execve` system call, 
 
 ---
 
+## Architectural Specification: Sentinel Stack - The ARMv8 (AArch64) Migration
+
+### Executive Overview and Architectural Paradigm Shift
+The successful deployment of the Sentinel Stack on x86-64 hardware validated the efficacy of a tri-ring security model, utilizing a Ring -1 hypervisor (`sentinel-vmi`), a Ring 0 eBPF network fast-path (`hyperion-xdp`), and a Ring 3 user-space Go daemon (`telos-runtime`). This architecture established a zero-trust environment where user-space components could bypass potentially compromised operating system kernels by communicating directly with the hypervisor via an authenticated CPUID instruction backdoor, while memory immutability was guaranteed through Intel Extended Page Tables (EPT).
+
+However, the migration to modern, high-density cloud infrastructure—dominated by ARMv8-A (AArch64) processors such as the AWS Graviton and Ampere Altra—necessitates a fundamental redesign of these isolation, interception, and memory management primitives. The Intel VT-x concepts do not translate directly to the ARM Exception Level (EL) model.
+
+The ARMv8 migration establishes a bare-metal EL2 hypervisor that entirely replaces the legacy VT-x model. The semantic execution gap is now bridged natively using AArch64 hardware features.
+
+### 1. The Zero-Trust Drawbridge (Replacing CPUID)
+The x86-64 `CPUID` instruction trap is completely absent in ARMv8. Instead, Sentinel Stack utilizes a memory-mapped trap known as the **Zero-Trust Drawbridge**. The EL2 hypervisor maps a specific 2MB block of physical memory (e.g., `0x40200000`) and modifies its Stage 2 Access Permissions (`S2AP`) to Read-Only (`0b01`). When the EL1 guest kernel attempts to write an authenticated `HEKI` magic payload to this address, the MMU violently triggers a synchronous Stage 2 Data Abort (Exception Class `0x24`), instantly ripping execution out of the untrusted kernel and routing it into the hypervisor's `VBAR_EL2` exception vector. 
+
+### 2. Hardware Memory Immutability (Replacing Intel EPT)
+Intel EPT is replaced by the ARMv8 Stage 2 Translation Regime. The EL2 hypervisor dynamically constructs VMSAv8-64 Long-Descriptor translation tables, mapped via `VTTBR_EL2` and controlled by `VTCR_EL2`. To lock down eBPF maps or critical data structures, the hypervisor overrides the Stage 2 Block Descriptors to Read-Only (`S2AP = 0b01`). Any unauthorized modification attempt by a compromised EL1 kernel results in an immediate hardware fault, guaranteeing mathematical immutability.
+
+### 3. Hypervisor Chain-Loading and Privilege Dropping
+Unlike x86-64 `VMLAUNCH`, AArch64 utilizes the Exception Return (`ERET`) instruction to transition between privilege levels. Upon initializing the Stage 2 MMU and arming the exception vectors, the EL2 hypervisor manipulates `SPSR_EL2` (to target EL1h with exceptions masked) and `ELR_EL2` (to target the physical entry point of the guest payload). The hypervisor then executes an `ERET` instruction, gracefully dropping privileges and chain-loading the untrusted EL1 Linux guest within a fully confined hardware envelope.
+
+---
+
 ## License
 Sentinel Stack is licensed under the GPL-2.0 License.
