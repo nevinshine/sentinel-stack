@@ -1,8 +1,10 @@
 #ifndef SENTINEL_IPC_H
 #define SENTINEL_IPC_H
 
+#if defined(__KERNEL__) || defined(__bpf__)
 #ifdef __KERNEL__
 #include <linux/types.h>
+#endif
 #else
 #include <stdint.h>
 typedef uint8_t  __u8;
@@ -13,6 +15,10 @@ typedef uint64_t __u64;
 
 #define SENTINEL_EVENT_PROCESS_VIOLATION 1
 #define SENTINEL_EVENT_NETWORK_DROP 2
+
+#define VMI_THREAT_CLEAN      0
+#define VMI_THREAT_SUSPICIOUS 1
+#define VMI_THREAT_MALICIOUS  2
 
 #define HEKI_MAGIC 0x48454B49
 #define HEKI_SUBSYSTEM_TELOS 1
@@ -46,11 +52,11 @@ struct sentinel_event_t {
 
 /* CPUID Drawbridge Request Payload */
 struct heki_drawbridge_request {
-    __u32 magic;
-    __u32 target_subsystem;
     __u64 payload_gva;
     __u32 payload_size;
+    __u32 target_subsystem;
     __u64 ephemeral_nonce;
+    __u32 magic;
 } __attribute__((packed));
 
 #endif /* SENTINEL_IPC_H */

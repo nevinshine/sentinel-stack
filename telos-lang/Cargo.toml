@@ -1,0 +1,11 @@
+[package]
+name = "telos-lang"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ed25519-dalek = { version = "2.2.0", features = ["rand_core"] }
+pest = "2.8.6"
+pest_derive = "2.8.6"
+rand = "0.8.5"
+z3 = "0.20.0"
