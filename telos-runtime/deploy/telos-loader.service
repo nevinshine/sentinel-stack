@@ -1,0 +1,30 @@
+[Unit]
+Description=Telos Core eBPF Loader Daemon
+After=network.target
+
+[Service]
+Type=simple
+# Must run as root to load eBPF programs into the kernel
+User=root
+WorkingDirectory=/home/nevin/telos-runtime
+ExecStart=/home/nevin/telos-runtime/bin/telos_daemon --socket /var/run/telos.sock
+
+# --- Production Hardening & Resource Limits ---
+# Required for loading BPF maps in older kernels
+LimitMEMLOCK=infinity
+# Required for high-throughput XDP socket events
+LimitNOFILE=1048576
+
+# CGroup Limits to prevent host starvation
+MemoryMax=250M
+CPUQuota=20%
+
+# [Phase 3] Auto-create /var/log/telos/ for NDJSON alert logging
+LogsDirectory=telos
+
+# Aggressive restart policy for fail-safe recovery
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

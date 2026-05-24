@@ -1,0 +1,14 @@
+# Binaries
+bin/
+hyperion_ctrl
+
+# BPF Artifacts
+src/user/bpf_*.go
+src/user/bpf_*.o
+src/user/xdp_bpf.go
+src/user/xdp_bpf.o
+
+# Config
+signatures.txt
+__pycache__/
+test_cli_flag.sh

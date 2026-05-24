@@ -1,0 +1,21 @@
+# Telos Cortex - Python Dependencies
+
+# gRPC Runtime
+grpcio>=1.60.0
+grpcio-tools>=1.60.0
+
+# Protocol Buffers
+protobuf>=4.25.0
+
+# Configuration
+PyYAML>=6.0.1
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# Utilities (optional but recommended)
+rich
+# DNS Interception
+dnslib
+
+# Cognitive Verifier (Phase 4) — optional, falls back to heuristics
+# llama-cpp-python  # Uncomment after: pip install llama-cpp-python

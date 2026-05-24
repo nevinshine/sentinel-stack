@@ -1,0 +1,9 @@
+go 1.25.9
+
+use (
+	./shared
+	./telos_core/loader
+	./telos_ctrl
+	./telos_edge/loader
+	./telos_tui
+)

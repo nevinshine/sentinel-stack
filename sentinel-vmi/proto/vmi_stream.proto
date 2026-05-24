@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package vmi;
+option go_package = "./pb/vmi";
+
+service AlertForwarder {
+    rpc PushAlert (Alert) returns (Ack);
+}
+
+message Alert {
+    uint32 pid = 1;
+    string threat_type = 2;
+    float confidence = 3;
+    uint32 threat_level = 4;
+    uint64 timestamp_ns = 5;
+    string reason = 6;
+}
+
+message Ack {
+    bool success = 1;
+}
