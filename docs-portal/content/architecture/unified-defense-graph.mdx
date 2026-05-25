@@ -15,15 +15,15 @@ The following diagram maps the complete enforcement topology of the Sentinel Sta
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  Layer 7 — AI Intelligence Plane                                │
-│  ┌──────────────┐    ┌─────────────────┐    ┌──────────────┐    │
-│  │ AI Agent     │───▶│ Telos Cortex    │───▶│ DNS Proxy    │    │
-│  │ (Intent)     │    │ Engine          │    │ :5353        │    │
-│  └──────────────┘    │                 │───▶│ Exec LOLBin  │    │
-│                      └────────┬────────┘    └──────────────┘    │
+│  Layer 7 - AI Intelligence Plane                                │
+│  ┌──────────────┐    ┌─────────────────┐    ┌──────────────┐   │
+│  │ AI Agent     │───▶│ Telos Cortex    │───▶│ DNS Proxy    │   │
+│  │ (Intent)     │    │ Engine          │    │ :5353        │   │
+│  └──────────────┘    │                 │───▶│ Exec LOLBin  │   │
+│                      └────────┬────────┘    └──────────────┘   │
 │                               │ gRPC / Unix Socket              │
 ├───────────────────────────────┼─────────────────────────────────┤
-│  Ring 0 — Runtime Enforcement │                                 │
+│  Ring 0 - Runtime Enforcement │                                 │
 │                      ┌────────▼────────┐                        │
 │                      │ Telos eBPF      │                        │
 │                      │ Daemon          │                        │
@@ -39,24 +39,24 @@ The following diagram maps the complete enforcement topology of the Sentinel Sta
 │  │ check_security│  │ connect        │  │ (Dynamic Taint)   │   │
 │  └───────────────┘  └────────────── ─┘  └───────────────────┘   │
 ├─────────────────────────────────────────────────────────────────┤
-│  Ring 0 — Compile-Time Verification                             │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐       │
-│  │ telos-lang   │───▶│ Z3 SMT       │───▶│ Verified     │       │
-│  │ Compiler     │    │ Verification │    │ eBPF IR      │       │
-│  └──────────────┘    └──────────────┘    └───── ─┬──────┘       │
+│  Ring 0 - Compile-Time Verification                             │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐      │
+│  │ telos-lang   │───▶│ Z3 SMT       │───▶│ Verified     │      │
+│  │ Compiler     │    │ Verification │    │ eBPF IR      │      │
+│  └──────────────┘    └──────────────┘    └──────┬───────┘      │
 │                                                  │ LLVM BPF     │
 │                                          ┌───────▼───────┐      │
 │                                          │ Hardened      │      │
 │                                          │ Bytecode      │──────┤
 ├──────────────────────────────────────────┴───────────────┴──────┤
-│  Ring -1 — Hypervisor Introspection                             │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐       │
-│  │ Sentinel VMI │───▶│ NPT Guard    │───▶│ sys_call_    │       │
-│  │ Engine       │    │ (HW RO)      │    │ table        │       │
-│  └──────┬───────┘    └──────────────┘    └──────────────┘       │
+│  Ring -1 - Hypervisor Introspection                             │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐      │
+│  │ Sentinel VMI │───▶│ NPT Guard    │───▶│ sys_call_    │      │
+│  │ Engine       │    │ (HW RO)      │    │ table        │      │
+│  └──────┬───────┘    └──────────────┘    └──────────────┘      │
 │         │ vmi_alert_map                                         │
 ├─────────┼───────────────────────────────────────────────────────┤
-│  Wire — NIC Boundary                                            │
+│  Wire - NIC Boundary                                            │
 │         │ RPC Push Malicious IPs                                │
 │  ┌──────▼───────┐                        ┌──────────────┐       │
 │  │ Hyperion XDP │──────XDP_DROP─────────▶│ Physical NIC │       │
