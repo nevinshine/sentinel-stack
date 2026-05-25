@@ -2,6 +2,7 @@
 
 import React, { type JSX } from "react";
 import type { DocPage } from "@/lib/mdx";
+import Link from "next/link";
 import TableOfContents from "@/components/TableOfContents";
 import RegisterMatrix from "@/components/RegisterMatrix";
 import StructAlignmentView from "@/components/StructAlignmentView";
@@ -311,9 +312,9 @@ export default function DocPageClient({ doc }: { doc: DocPage }) {
       <article className="flex-1 min-w-0 px-8 py-8">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 font-mono text-xs text-terminal-muted mb-6" aria-label="Breadcrumb">
-          <a href="/" className="hover:text-terminal-fg transition-colors no-underline text-terminal-muted">
+          <Link href="/" className="hover:text-terminal-fg transition-colors no-underline text-terminal-muted">
             ~
-          </a>
+          </Link>
           {doc.slug.map((part, idx) => (
             <React.Fragment key={idx}>
               <span className="text-terminal-border">/</span>
