@@ -67,6 +67,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - name: Install LLVM
+        run: sudo apt-get update && sudo apt-get install -y llvm-dev libclang-dev clang
       - name: Run Cargo Doc
         working-directory: telos-lang/telosc
         run: |
@@ -90,7 +92,7 @@ jobs:
         with:
           python-version: '3.10'
       - name: Install pdoc
-        run: pip install pdoc pdoc-markdown
+        run: pip install pdoc pydoc-markdown
       - name: Run pydoc-markdown
         run: |
           mkdir -p docs-portal/content/generated/python
