@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
 
 const layers = [
   { ring: "Ring -1", label: "Hypervisor", component: "sentinel-vmi", tech: "AMD-V / NPT Guard / ARMv8 EL2", objective: "Out-of-band Hypervisor Introspection", href: "/engineering/sentinel-vmi/overview", color: "#E06C75" },
@@ -39,7 +38,7 @@ export default function InteroperabilityMatrix() {
                   </span>
                 </td>
                 <td className="px-4 py-2.5">
-                  <Link href={layer.href} className="text-terminal-accent hover:underline font-semibold">{layer.component}</Link>
+                  <a href={layer.href} className="text-terminal-accent hover:underline font-semibold">{layer.component}</a>
                 </td>
                 <td className="px-4 py-2.5 text-terminal-fg">{layer.tech}</td>
                 <td className="px-4 py-2.5 text-terminal-muted">{layer.objective}</td>
