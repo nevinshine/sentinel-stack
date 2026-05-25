@@ -37,12 +37,12 @@ jobs:
       - name: Run Doxybook2
         working-directory: docs-portal
         run: |
-          mkdir -p content/generated/c
-          doxybook2 --input doxygen_output/xml --output content/generated/c --config config-doxybook2.json
+          mkdir -p src/content/docs/generated/c
+          doxybook2 --input doxygen_output/xml --output src/content/docs/generated/c --config config-doxybook2.json
       - uses: actions/upload-artifact@v4
         with:
           name: docs-c
-          path: docs-portal/content/generated/c
+          path: docs-portal/src/content/docs/generated/c
 
   gomarkdoc-extract:
     name: Extract Go AST (Gomarkdoc)
@@ -58,13 +58,13 @@ jobs:
         run: go install github.com/princjef/gomarkdoc/cmd/gomarkdoc@latest
       - name: Run Gomarkdoc
         run: |
-          mkdir -p docs-portal/content/generated/go
+          mkdir -p docs-portal/src/content/docs/generated/go
           cd hyperion-xdp
-          $(go env GOPATH)/bin/gomarkdoc --output ../docs-portal/content/generated/go/hyperion-xdp.md ./...
+          $(go env GOPATH)/bin/gomarkdoc --output ../docs-portal/src/content/docs/generated/go/hyperion-xdp.md ./...
       - uses: actions/upload-artifact@v4
         with:
           name: docs-go
-          path: docs-portal/content/generated/go
+          path: docs-portal/src/content/docs/generated/go
 
   rustdoc-extract:
     name: Extract Rust AST (Rustdoc)
@@ -109,15 +109,15 @@ jobs:
         run: pip install pdoc pydoc-markdown
       - name: Run pydoc-markdown
         run: |
-          mkdir -p docs-portal/content/generated/python
+          mkdir -p docs-portal/src/content/docs/generated/python
           cd telos-runtime
           # Extract documentation using pydoc-markdown
-          python -m pydoc_markdown -p telos_core -I . > ../docs-portal/content/generated/python/telos_core.md || true
-          python -m pydoc_markdown -p cortex -I . > ../docs-portal/content/generated/python/cortex.md || true
+          python -m pydoc_markdown -p telos_core -I . > ../docs-portal/src/content/docs/generated/python/telos_core.md || true
+          python -m pydoc_markdown -p cortex -I . > ../docs-portal/src/content/docs/generated/python/cortex.md || true
       - uses: actions/upload-artifact@v4
         with:
           name: docs-python
-          path: docs-portal/content/generated/python
+          path: docs-portal/src/content/docs/generated/python
 
   build-and-deploy:
     name: Build & Deploy Portal
@@ -144,10 +144,10 @@ jobs:
       - name: Assemble generated content
         working-directory: docs-portal
         run: |
-          mkdir -p content/generated
-          cp -r ../docs-artifacts/docs-c/* content/generated/ || true
-          cp -r ../docs-artifacts/docs-go/* content/generated/ || true
-          cp -r ../docs-artifacts/docs-python/* content/generated/ || true
+          mkdir -p src/content/docs/generated
+          cp -r ../docs-artifacts/docs-c/* src/content/docs/generated/ || true
+          cp -r ../docs-artifacts/docs-go/* src/content/docs/generated/ || true
+          cp -r ../docs-artifacts/docs-python/* src/content/docs/generated/ || true
           
           mkdir -p public/rustdoc
           cp -r ../docs-artifacts/docs-rust/* public/rustdoc/ || true
@@ -158,9 +158,9 @@ jobs:
 
       - name: Inject Metadata
         working-directory: docs-portal
-        run: node scripts/inject-metadata.mjs content/generated
+        run: node scripts/inject-metadata.mjs src/content/docs/generated
 
-      - name: Build Next.js
+      - name: Build Astro Starlight
         working-directory: docs-portal
         run: npm run build
 
