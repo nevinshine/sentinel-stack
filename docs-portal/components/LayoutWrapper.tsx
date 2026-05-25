@@ -5,6 +5,7 @@ import SearchOmnibox from "./SearchOmnibox";
 
 export default function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true);
 
   return (
     <>
@@ -17,18 +18,33 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
       )}
 
       {/* Sidebar - responsive */}
-      <div className={`fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <div 
+        className={`fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 
+          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
+          ${isDesktopSidebarOpen ? 'md:translate-x-0' : 'md:-translate-x-full'}
+        `}
+      >
         <Sidebar onClose={() => setIsSidebarOpen(false)} />
       </div>
 
-      <div className="md:ml-64 min-h-screen flex flex-col">
+      <div 
+        className={`min-h-screen flex flex-col transition-all duration-300 ${
+          isDesktopSidebarOpen ? 'md:ml-64' : 'md:ml-0'
+        }`}
+      >
         {/* Top Bar */}
         <header className="sticky top-0 z-20 bg-terminal-base/90 backdrop-blur-md border-b border-terminal-border">
           <div className="flex items-center gap-3 px-4 md:px-6 py-3">
             <button 
-              className="md:hidden p-1.5 text-terminal-muted hover:text-terminal-fg rounded bg-terminal-surface border border-terminal-border transition-colors"
-              onClick={() => setIsSidebarOpen(true)}
-              aria-label="Open Menu"
+              className="p-1.5 text-terminal-muted hover:text-terminal-fg rounded bg-terminal-surface border border-terminal-border transition-colors"
+              onClick={() => {
+                if (window.innerWidth < 768) {
+                  setIsSidebarOpen(true);
+                } else {
+                  setIsDesktopSidebarOpen(!isDesktopSidebarOpen);
+                }
+              }}
+              aria-label="Toggle Menu"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="3" y1="12" x2="21" y2="12"></line>
