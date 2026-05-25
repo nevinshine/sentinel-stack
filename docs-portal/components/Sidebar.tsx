@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NavItem, navigationTree } from "@/lib/navigation";
 
-function NavNode({ item, depth = 0 }: { item: NavItem; depth?: number }) {
+function NavNode({ item, depth = 0, onClose }: { item: NavItem; depth?: number; onClose?: () => void }) {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(() => {
     // Auto-expand if current path matches any child
@@ -68,7 +68,7 @@ function NavNode({ item, depth = 0 }: { item: NavItem; depth?: number }) {
           }}
         >
           {item.children!.map((child, idx) => (
-            <NavNode key={`${child.title}-${idx}`} item={child} depth={depth + 1} />
+            <NavNode key={`${child.title}-${idx}`} item={child} depth={depth + 1} onClose={onClose} />
           ))}
         </div>
       </div>
@@ -85,6 +85,7 @@ function NavNode({ item, depth = 0 }: { item: NavItem; depth?: number }) {
           : "text-terminal-muted hover:text-terminal-fg hover:bg-terminal-surface-hover"
       }`}
       style={{ paddingLeft }}
+      onClick={onClose}
     >
       <span className={`mr-1.5 text-[8px] ${isActive ? "text-terminal-accent" : "text-terminal-border"}`}>
         {item.icon || "◆"}
@@ -94,7 +95,7 @@ function NavNode({ item, depth = 0 }: { item: NavItem; depth?: number }) {
   );
 }
 
-export default function Sidebar() {
+export default function Sidebar({ onClose }: { onClose?: () => void }) {
   return (
     <aside
       className="w-64 h-screen fixed left-0 top-0 bg-terminal-surface border-r border-terminal-border flex flex-col overflow-hidden z-30"
@@ -103,7 +104,7 @@ export default function Sidebar() {
     >
       {/* Header */}
       <div className="px-4 pt-5 pb-4 border-b border-terminal-border">
-        <Link href="/" className="flex items-center gap-2.5 group no-underline">
+        <Link href="/" className="flex items-center gap-2.5 group no-underline" onClick={onClose}>
           <div className="w-7 h-7 rounded bg-terminal-accent/10 border border-terminal-accent/30 flex items-center justify-center group-hover:bg-terminal-accent/20 transition-colors">
             <span className="text-terminal-accent font-mono text-xs font-bold">S</span>
           </div>
@@ -126,7 +127,7 @@ export default function Sidebar() {
           </span>
         </div>
         {navigationTree.map((item, idx) => (
-          <NavNode key={`${item.title}-${idx}`} item={item} depth={0} />
+          <NavNode key={`${item.title}-${idx}`} item={item} depth={0} onClose={onClose} />
         ))}
       </nav>
 

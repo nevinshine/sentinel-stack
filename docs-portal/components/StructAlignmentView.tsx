@@ -57,7 +57,7 @@ export default function StructAlignmentView({ title, description, totalSize, cFi
   const [hoveredField, setHoveredField] = useState<StructField | null>(null);
 
   return (
-    <div className="my-6 rounded-lg border border-terminal-border bg-terminal-surface overflow-hidden">
+    <div className="my-6 rounded-lg border border-terminal-border bg-terminal-surface overflow-x-auto">
       <div className="px-4 py-3 border-b border-terminal-border flex items-center justify-between">
         <div>
           <h4 className="font-mono text-sm font-bold text-terminal-accent m-0 p-0 border-none">{title}</h4>
@@ -67,7 +67,7 @@ export default function StructAlignmentView({ title, description, totalSize, cFi
           <span className="font-mono text-[10px] px-2 py-1 bg-terminal-accent/10 text-terminal-accent rounded border border-terminal-accent/20">{totalSize} bytes</span>
         </div>
       </div>
-      <div className="grid grid-cols-2 divide-x divide-terminal-border">
+      <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-terminal-border min-w-[600px] lg:min-w-0">
         <div>
           <div className="px-3 py-2 border-b border-terminal-border bg-terminal-base/50 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-terminal-red" />
