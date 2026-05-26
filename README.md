@@ -111,15 +111,16 @@ graph TD
 
 ## Components
 
-### sentinel-smm — Ring -2 SMM Supervisor
+### sentinel-smm — Ring -2 / Ring -3 Supervisor
 
-Operates in System Management Mode (SMM), the highest privilege level on x86, to sandbox and neuter third-party CPL3 System Management Interrupt (SMI) handlers. Protects against firmware-level bootkits by enforcing strict, hardware-level "Default Deny" policies.
+Operates natively at the hardware and firmware levels to isolate the OS from opaque sub-systems. Enforces strict policies in System Management Mode (Ring -2) to sandbox SMI handlers, and interdicts Intel Management Engine (Ring -3) traffic via HECI Kprobes.
 
 **Key capabilities:**
 - Hardware-enforced `#GP` exception traps for privileged operations (MSRs, I/O)
-- Ultra-low latency $O(1)$ Bitmap policy enforcement engine to prevent system jitter
-- Cryptographically verified `SentinelSharedBuffer` for SPI flash operations
-- Neutralizes Ring -2 rootkits (e.g. SinkClose) prior to OS and Hypervisor execution
+- Cryptographically verified `SentinelSharedBuffer` for SPI flash hardware lockdown
+- S3 Boot Script Table hook to guarantee `FLOCKDN` and `PR0` registers persist across ACPI sleep states
+- Ring -3 HECI interdiction via LKM Kprobes to block restricted Intel ME client GUIDs (AMT, ICC)
+- Neutralizes Ring -2 rootkits (e.g., SinkClose) prior to OS and Hypervisor execution
 
 ### sentinel-vmi — Ring -1 Hypervisor Introspection
 
@@ -131,6 +132,18 @@ Operates below the OS at the AMD-V / ARMv8 EL2 hardware layer. Monitors guest me
 - NPT Guard with multi-region integrity baseline (IDT/GDT/LSTAR/kernel_text)
 - Cross-layer eBPF map bridge to Telos Runtime and Hyperion XDP
 - Heki IPC with Drawbridge cryptographic nonce verification
+
+### sentinel-cc — Ring 0 Policy-Carrying Code Enforcement
+
+Enforces compile-time intent at runtime to eliminate the semantic gap between compiler intent and kernel execution. Embeds security policies directly into the binary and validates execution validity via a cryptographic trust chain and eBPF fentry hooks.
+
+**Key capabilities:**
+- Compiler-generated whitelists of valid syscalls, CFI ranges, and library imports
+- Embedded cryptographic trust via Ed25519 signatures
+- Kernel enforcement via 19 eBPF fentry hooks + 5 fexit hooks
+- Per-app attack surface reduction via call-graph BFS through libc
+- Shadow stack CFI to detect ROP chains and stack smashing
+
 
 ### telos-runtime — Intent-Based AI Security
 
