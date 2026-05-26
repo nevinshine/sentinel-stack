@@ -17,6 +17,11 @@
   BaseMemoryLib|MdePkg/Library/BaseMemoryLib/BaseMemoryLib.inf
   PrintLib|MdePkg/Library/BasePrintLib/BasePrintLib.inf
   
+  # Hardware Register Access (SPI Flash Lockdown - Phase 3)
+  IoLib|MdePkg/Library/BaseIoLibIntrinsic/BaseIoLibIntrinsic.inf
+  PciLib|MdePkg/Library/BasePciLibPciExpress/BasePciLibPciExpress.inf
+  PciExpressLib|MdePkg/Library/BasePciExpressLib/BasePciExpressLib.inf
+  RegisterFilterLib|MdePkg/Library/RegisterFilterLibNull/RegisterFilterLibNull.inf
   # Setup Serial Debugging for Pre-boot environment (QEMU compat)
   DebugLib|MdePkg/Library/BaseDebugLibSerialPort/BaseDebugLibSerialPort.inf
   SerialPortLib|PcAtChipsetPkg/Library/SerialIoLib/SerialIoLib.inf

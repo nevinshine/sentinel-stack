@@ -21,6 +21,8 @@
   DebugLib
   MemoryAllocationLib
   BaseMemoryLib
+  IoLib
+  PciLib
 
 [Depex]
   TRUE

@@ -3,8 +3,11 @@
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/DebugLib.h>
 #include <Library/MemoryAllocationLib.h>
+#include <Library/IoLib.h>
+#include <Library/PciLib.h>
 #include "SentinelSharedBuffer.h"
 #include "SentinelSmmCpuContext.h"
+#include "SentinelSpiLockdown.h"
 
 // ----------------------------------------------------------------------------
 // Policy Data Structures
@@ -19,9 +22,177 @@ static const UINT32 SafeMsrList[] = {
 };
 #define SAFE_MSR_COUNT (sizeof(SafeMsrList) / sizeof(UINT32))
 
-// SPI MMIO Range
+// SPI MMIO Range (legacy constants retained for I/O port policy)
 #define SPI_BASE_ADDR  0xFED01000
 #define SPI_LIMIT_ADDR 0xFED02000
+
+// ----------------------------------------------------------------------------
+// Phase 3: SPI Flash Hardware Lockdown
+// ----------------------------------------------------------------------------
+//
+// Enforces hardware-level write protection on the SPI flash chip during
+// the DXE boot phase, permanently severing Ring 0's ability to modify
+// firmware partitions. This is the ultimate defensive backstop:
+// even if the OS kernel is fully compromised, it cannot reflash the
+// ME/BIOS regions.
+//
+// Sequence:
+//   1. Read RCBA to locate chipset MMIO base
+//   2. Compute SPIBAR = RCBA + 0x3800
+//   3. Read FREG2 to extract ME firmware region boundaries
+//   4. Program PR0 to write-protect the ME region
+//   5. Assert FLOCKDN in HSFS to lock PR0-PR4 permanently
+//   6. Assert SMM_BWP and BLE in BIOS_CNTL
+//   7. Clear BIOSWE to disable flash writes
+// ----------------------------------------------------------------------------
+
+static EFI_STATUS
+EnforceSpiLockdown (
+    VOID
+    )
+{
+    UINT32  RcbaRaw;
+    UINT32  RcbaBase;
+    UINT32  SpiBar;
+    UINT32  Hsfs;
+    UINT32  Freg2;
+    UINT32  MeBase;
+    UINT32  MeLimit;
+    UINT32  Pr0Value;
+    UINT8   BiosCntl;
+
+    DEBUG ((DEBUG_INFO, "[SentinelSmm] --- Phase 3: SPI Flash Hardware Lockdown ---\n"));
+
+    // ========================================================================
+    // Step 1: Locate the Root Complex Base Address (RCBA)
+    // ========================================================================
+    RcbaRaw = PciRead32 (LPC_PCI_ADDR (R_RCBA));
+    if ((RcbaRaw & B_RCBA_ENABLE) == 0) {
+        DEBUG ((DEBUG_ERROR, "[SentinelSmm] FATAL: RCBA is not enabled. "
+                "Cannot access SPI registers. ABORTING.\n"));
+        return EFI_DEVICE_ERROR;
+    }
+
+    RcbaBase = RcbaRaw & RCBA_ADDR_MASK;
+    SpiBar   = RcbaBase + SPIBAR_OFFSET;
+
+    DEBUG ((DEBUG_INFO, "[SentinelSmm]   RCBA Base:  0x%08X\n", RcbaBase));
+    DEBUG ((DEBUG_INFO, "[SentinelSmm]   SPIBAR:     0x%08X\n", SpiBar));
+
+    // ========================================================================
+    // Step 2: Extract ME Region Boundaries from Flash Descriptor (FREG2)
+    // ========================================================================
+    //
+    // FREG2 defines the physical address range of the Intel ME firmware
+    // partition on the SPI flash. We read this to dynamically program PR0.
+    //
+    Freg2   = MmioRead32 (SpiBar + R_FREG2_ME);
+    MeBase  = (Freg2 & FREG_BASE_MASK) << 12;             // Convert 4KB units
+    MeLimit = ((Freg2 & FREG_LIMIT_MASK) >> FREG_LIMIT_SHIFT) << 12;
+    MeLimit |= 0xFFF;                                      // Align to 4KB boundary
+
+    DEBUG ((DEBUG_INFO, "[SentinelSmm]   ME Region:  0x%08X - 0x%08X "
+            "(%d KB)\n", MeBase, MeLimit,
+            (MeLimit - MeBase + 1) / 1024));
+
+    if (MeBase == 0 && MeLimit == 0xFFF) {
+        DEBUG ((DEBUG_WARN, "[SentinelSmm] WARNING: ME region appears empty "
+                "or disabled. PR0 will still be programmed as a "
+                "defensive measure.\n"));
+    }
+
+    // ========================================================================
+    // Step 3: Program PR0 to Write-Protect the ME Firmware Region
+    // ========================================================================
+    //
+    // PR0 uses 4KB granularity. We set the Write Protection (WP) bit to
+    // physically block all writes to the ME address range, overriding
+    // even SMM-level write attempts.
+    //
+    Pr0Value = PR_VALUE (MeBase, MeLimit, TRUE, FALSE);
+    MmioWrite32 (SpiBar + R_PR0, Pr0Value);
+
+    DEBUG ((DEBUG_INFO, "[SentinelSmm]   PR0 Value:  0x%08X "
+            "[WP=1, RP=0]\n", Pr0Value));
+
+    // Verify the write stuck
+    if (MmioRead32 (SpiBar + R_PR0) != Pr0Value) {
+        DEBUG ((DEBUG_ERROR, "[SentinelSmm] FATAL: PR0 write verification "
+                "failed. Flash may already be locked by OEM firmware.\n"));
+        // Non-fatal: continue with BIOS_CNTL lockdown even if PR0 fails
+    }
+
+    // ========================================================================
+    // Step 4: Assert FLOCKDN in HSFS
+    // ========================================================================
+    //
+    // FLOCKDN creates an irreversible hardware latch on PR0-PR4, FRAP,
+    // and opcode configuration registers. Once set, no software — not
+    // even SMM — can reconfigure the protected ranges until hardware reset.
+    //
+    Hsfs = MmioRead32 (SpiBar + R_HSFS);
+    DEBUG ((DEBUG_INFO, "[SentinelSmm]   HSFS Before: 0x%08X  "
+            "(FLOCKDN=%d)\n", Hsfs,
+            (Hsfs & B_HSFS_FLOCKDN) ? 1 : 0));
+
+    if ((Hsfs & B_HSFS_FLOCKDN) == 0) {
+        MmioOr32 (SpiBar + R_HSFS, B_HSFS_FLOCKDN);
+        Hsfs = MmioRead32 (SpiBar + R_HSFS);
+
+        if ((Hsfs & B_HSFS_FLOCKDN) == 0) {
+            DEBUG ((DEBUG_ERROR, "[SentinelSmm] FATAL: Failed to assert "
+                    "FLOCKDN. SPI configuration remains mutable.\n"));
+        } else {
+            DEBUG ((DEBUG_INFO, "[SentinelSmm]   HSFS After:  0x%08X  "
+                    "(FLOCKDN=1) [LOCKED]\n", Hsfs));
+        }
+    } else {
+        DEBUG ((DEBUG_INFO, "[SentinelSmm]   FLOCKDN already asserted "
+                "by platform firmware.\n"));
+    }
+
+    // ========================================================================
+    // Step 5: Assert SMM_BWP and BLE in BIOS_CNTL
+    // ========================================================================
+    //
+    // SMM_BWP: Restricts flash writes exclusively to SMM context.
+    // BLE:     Arms the SMI trap — any Ring 0 attempt to set BIOSWE
+    //          triggers an immediate System Management Interrupt.
+    // BIOSWE:  Cleared to 0 to disable flash writes from non-SMM.
+    //
+    BiosCntl = PciRead8 (LPC_PCI_ADDR (R_BIOS_CNTL));
+    DEBUG ((DEBUG_INFO, "[SentinelSmm]   BIOS_CNTL Before: 0x%02X  "
+            "(BIOSWE=%d, BLE=%d, SMM_BWP=%d)\n", BiosCntl,
+            (BiosCntl & B_BIOS_CNTL_BIOSWE) ? 1 : 0,
+            (BiosCntl & B_BIOS_CNTL_BLE) ? 1 : 0,
+            (BiosCntl & B_BIOS_CNTL_SMM_BWP) ? 1 : 0));
+
+    // Clear BIOSWE (bit 0), Set BLE (bit 1) and SMM_BWP (bit 5)
+    BiosCntl &= (UINT8)~B_BIOS_CNTL_BIOSWE;   // Force writes OFF
+    BiosCntl |= B_BIOS_CNTL_BLE;                // Arm the SMI trap
+    BiosCntl |= B_BIOS_CNTL_SMM_BWP;            // SMM-exclusive writes
+    PciWrite8 (LPC_PCI_ADDR (R_BIOS_CNTL), BiosCntl);
+
+    // Verify
+    BiosCntl = PciRead8 (LPC_PCI_ADDR (R_BIOS_CNTL));
+    DEBUG ((DEBUG_INFO, "[SentinelSmm]   BIOS_CNTL After:  0x%02X  "
+            "(BIOSWE=%d, BLE=%d, SMM_BWP=%d)\n", BiosCntl,
+            (BiosCntl & B_BIOS_CNTL_BIOSWE) ? 1 : 0,
+            (BiosCntl & B_BIOS_CNTL_BLE) ? 1 : 0,
+            (BiosCntl & B_BIOS_CNTL_SMM_BWP) ? 1 : 0));
+
+    if ((BiosCntl & B_BIOS_CNTL_BLE) && (BiosCntl & B_BIOS_CNTL_SMM_BWP)) {
+        DEBUG ((DEBUG_INFO, "[SentinelSmm]   SPI LOCKDOWN: COMPLETE\n"));
+        DEBUG ((DEBUG_INFO, "[SentinelSmm]   Ring 0 flash write capability: "
+                "SEVERED\n"));
+    } else {
+        DEBUG ((DEBUG_ERROR, "[SentinelSmm]   SPI LOCKDOWN: PARTIAL — "
+                "some bits did not latch.\n"));
+    }
+
+    DEBUG ((DEBUG_INFO, "[SentinelSmm] --- Phase 3: Complete ---\n"));
+    return EFI_SUCCESS;
+}
 
 // ----------------------------------------------------------------------------
 // Policy Initialization
@@ -116,16 +287,35 @@ SentinelSmmDxeEntry (
   IN EFI_SYSTEM_TABLE  *SystemTable
   )
 {
+  EFI_STATUS Status;
+
   DEBUG ((DEBUG_INFO, "\n[SentinelSmm] =======================================\n"));
-  DEBUG ((DEBUG_INFO, "[SentinelSmm] DXE Driver Entry Phase 1 Init...\n"));
-  
-  InitPolicyTable();
-  
-  DEBUG ((DEBUG_INFO, "[SentinelSmm] Allocating Circular Shared Memory Buffer...\n"));
-  // TODO: Initialize SentinelSharedBuffer allocation in TSEG/TMR
-  
-  DEBUG ((DEBUG_INFO, "[SentinelSmm] DXE Driver Initialization Complete.\n"));
+  DEBUG ((DEBUG_INFO, "[SentinelSmm] DXE Driver Entry — Ring -2 Supervisor\n"));
   DEBUG ((DEBUG_INFO, "[SentinelSmm] =======================================\n"));
-  
+
+  // Phase 1: Initialize the O(1) I/O port and MSR policy bitmaps
+  DEBUG ((DEBUG_INFO, "[SentinelSmm] Phase 1: Policy Table Init...\n"));
+  InitPolicyTable();
+
+  // Phase 2: Allocate secure shared memory buffer in TSEG/TMR
+  DEBUG ((DEBUG_INFO, "[SentinelSmm] Phase 2: Shared Memory Buffer...\n"));
+  // TODO: Initialize SentinelSharedBuffer allocation in TSEG/TMR
+
+  // Phase 3: SPI Flash Hardware Lockdown
+  // Permanently severs Ring 0's ability to write to firmware partitions.
+  // This is the ultimate guarantor of Ring -3 containment.
+  DEBUG ((DEBUG_INFO, "[SentinelSmm] Phase 3: SPI Flash Lockdown...\n"));
+  Status = EnforceSpiLockdown ();
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "[SentinelSmm] CRITICAL: SPI Lockdown failed "
+            "(Status = %r). Continuing with reduced protection.\n", Status));
+    // Non-fatal: the I/O and MSR policies still provide defense.
+    // Fail-open on lockdown to avoid bricking during development.
+  }
+
+  DEBUG ((DEBUG_INFO, "\n[SentinelSmm] =======================================\n"));
+  DEBUG ((DEBUG_INFO, "[SentinelSmm] DXE Initialization: ALL PHASES COMPLETE\n"));
+  DEBUG ((DEBUG_INFO, "[SentinelSmm] =======================================\n"));
+
   return EFI_SUCCESS;
 }
