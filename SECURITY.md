@@ -16,7 +16,7 @@ Only the latest active release branches receive security updates. Security patch
 
 If you have discovered a security vulnerability in any of the Sentinel Stack components (including `telos-runtime`, `hyperion-xdp`, `telos-lang`, `sentinel-vmi`, or `sentinel-kv`), **do not open a public issue.**
 
-Please report the vulnerability by emailing our security team at **security@sentinel-stack.local**. 
+Please report the vulnerability by emailing our security team at **security@nevinshine.com** or by opening a GitHub Security Advisory on the repository.
 
 ### PGP Key
 

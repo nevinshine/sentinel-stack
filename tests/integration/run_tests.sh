@@ -5,22 +5,24 @@ echo "=========================================="
 echo " Starting Guillotine Integration Test"
 echo "=========================================="
 
+WORKSPACE=$(cd "$(dirname "$0")/../.." && pwd)
+
 # Build the daemons
 echo "[1] Building daemons..."
-cd /home/nevin/sentinel-stack/telos-runtime && make
-cd /home/nevin/sentinel-stack/hyperion-xdp && make build
+cd "$WORKSPACE/telos-runtime" && make
+cd "$WORKSPACE/hyperion-xdp" && make build
 
 # Stop existing instances if any
 sudo pkill -9 telos_daemon || true
 sudo pkill -9 hyperion_ctrl || true
 
 echo "[2] Starting Hyperion XDP Engine in background..."
-cd /home/nevin/sentinel-stack/hyperion-xdp
+cd "$WORKSPACE/hyperion-xdp"
 sudo ./bin/hyperion_ctrl &
 HYP_PID=$!
 
 echo "[3] Starting Telos Daemon in background..."
-cd /home/nevin/sentinel-stack/telos-runtime
+cd "$WORKSPACE/telos-runtime"
 sudo ./bin/telos_daemon &
 TEL_PID=$!
 
@@ -29,7 +31,7 @@ echo "[4] Waiting 5 seconds for BPF Maps to mount..."
 sleep 5
 
 echo "[5] Running Capstone Test Suite..."
-cd /home/nevin/sentinel-stack/tests/integration
+cd "$WORKSPACE/tests/integration"
 sudo go test -v ./...
 
 echo "=========================================="
