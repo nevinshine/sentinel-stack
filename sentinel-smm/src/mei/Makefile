@@ -30,13 +30,17 @@ PWD  := $(shell pwd)
 ccflags-y := -Wall -Werror -Wextra -Wno-unused-parameter
 ccflags-y += -DDEBUG  # Enable pr_debug() output; remove for release builds
 
-.PHONY: all clean load unload check
+.PHONY: all clean load unload check utils
 
-all:
+all: utils
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
+
+utils:
+	$(CC) -O2 -Wall -Wextra -o sentinel_me_disable sentinel_me_disable.c sentinel_bootguard_check.c
 
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
+	rm -f sentinel_me_disable
 
 # Convenience targets for rapid development iteration
 load: all
