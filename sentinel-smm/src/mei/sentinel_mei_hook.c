@@ -35,6 +35,7 @@
 #include <linux/version.h>
 #include <linux/ptrace.h>
 #include <linux/mei_cl_bus.h>
+#include <net/genetlink.h>
 
 #include "sentinel_mei_hook.h"
 
@@ -79,6 +80,58 @@ static atomic64_t mei_send_total    = ATOMIC64_INIT(0);
 static atomic64_t mei_send_blocked  = ATOMIC64_INIT(0);
 static atomic64_t mei_send_logged   = ATOMIC64_INIT(0);
 static atomic64_t mei_recv_total    = ATOMIC64_INIT(0);
+
+/* -------------------------------------------------------------------------
+ * Generic Netlink Boilerplate
+ * ------------------------------------------------------------------------- */
+static const struct genl_multicast_group sentinel_genl_mcgrps[] = {
+	{ .name = SENTINEL_GENL_MCGRP },
+};
+
+static struct genl_family sentinel_genl_family = {
+	.name = SENTINEL_GENL_NAME,
+	.version = 1,
+	.maxattr = SENTINEL_ATTR_MAX,
+	.mcgrps = sentinel_genl_mcgrps,
+	.n_mcgrps = ARRAY_SIZE(sentinel_genl_mcgrps),
+};
+
+static void sentinel_mei_netlink_broadcast(struct pt_regs *regs, const guid_t *guid, u32 action)
+{
+	struct sk_buff *skb;
+	void *msg_head;
+	struct sentinel_heci_event evt;
+
+	/* Must use GFP_ATOMIC because this is called from kprobe context */
+	skb = genlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
+	if (!skb) {
+		pr_err("Failed to allocate netlink skb\n");
+		return;
+	}
+
+	msg_head = genlmsg_put(skb, 0, 0, &sentinel_genl_family, 0, SENTINEL_CMD_EVENT);
+	if (!msg_head) {
+		pr_err("genlmsg_put failed\n");
+		nlmsg_free(skb);
+		return;
+	}
+
+	memset(&evt, 0, sizeof(evt));
+	evt.pid = task_tgid_vnr(current);
+	evt.uid = from_kuid(&init_user_ns, current_uid());
+	evt.action = action;
+	guid_copy((guid_t *)&evt.guid, guid);
+
+	if (nla_put(skb, SENTINEL_ATTR_EVENT, sizeof(evt), &evt)) {
+		pr_err("nla_put failed\n");
+		genlmsg_cancel(skb, msg_head);
+		nlmsg_free(skb);
+		return;
+	}
+
+	genlmsg_end(skb, msg_head);
+	genlmsg_multicast(&sentinel_genl_family, skb, 0, 0, GFP_ATOMIC);
+}
 
 /* -------------------------------------------------------------------------
  * GUID Policy Lookup
@@ -279,6 +332,9 @@ sentinel_mei_send_ret_handler(struct kretprobe_instance *ri,
 			"GUID: %pUl  pid=%d  comm=%s  (return -> -EPERM)\n",
 			data->client_name, &data->guid,
 			current->pid, current->comm);
+		
+		/* Broadcast telemetry over Netlink */
+		sentinel_mei_netlink_broadcast(regs, &data->guid, 1);
 	}
 
 	return 0;
@@ -348,6 +404,14 @@ static int __init sentinel_mei_init(void)
 	pr_info("Loading... (strict_mkhi=%d, log_allowed=%d)\n",
 		strict_mkhi, log_allowed);
 
+	/* Register Generic Netlink Family */
+	ret = genl_register_family(&sentinel_genl_family);
+	if (ret) {
+		pr_err("Failed to register Generic Netlink family: %d\n", ret);
+		return ret;
+	}
+	pr_info("[+] Generic Netlink family '%s' registered\n", SENTINEL_GENL_NAME);
+
 	/* Register the kretprobe first (it includes its own kprobe) */
 	ret = register_kretprobe(&krp_mei_send);
 	if (ret < 0) {
@@ -397,6 +461,7 @@ static int __init sentinel_mei_init(void)
 
 unregister_kretprobe:
 	unregister_kretprobe(&krp_mei_send);
+	genl_unregister_family(&sentinel_genl_family);
 	return ret;
 }
 
@@ -415,6 +480,7 @@ static void __exit sentinel_mei_exit(void)
 
 	unregister_kprobe(&kp_mei_send);
 	unregister_kretprobe(&krp_mei_send);
+	genl_unregister_family(&sentinel_genl_family);
 
 	pr_info("Final Counters:\n");
 	pr_info("  HECI Send Total:   %lld\n", atomic64_read(&mei_send_total));

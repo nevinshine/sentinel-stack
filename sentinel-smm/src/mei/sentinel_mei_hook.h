@@ -158,4 +158,32 @@ enum sentinel_mei_event {
 	SMEI_EVT_PROBE_DETACHED,
 };
 
+/* -------------------------------------------------------------------------
+ * Generic Netlink Telemetry Bridge
+ * ------------------------------------------------------------------------- */
+#define SENTINEL_GENL_NAME "SENTINEL_MEI"
+#define SENTINEL_GENL_MCGRP "heci_events"
+
+enum sentinel_genl_attrs {
+	SENTINEL_ATTR_UNSPEC,
+	SENTINEL_ATTR_EVENT,
+	__SENTINEL_ATTR_MAX,
+};
+#define SENTINEL_ATTR_MAX (__SENTINEL_ATTR_MAX - 1)
+
+enum sentinel_genl_cmds {
+	SENTINEL_CMD_UNSPEC,
+	SENTINEL_CMD_EVENT,
+	__SENTINEL_CMD_MAX,
+};
+#define SENTINEL_CMD_MAX (__SENTINEL_CMD_MAX - 1)
+
+/* Packed binary struct for zero-allocation userspace unpacking */
+struct sentinel_heci_event {
+	u32 pid;
+	u32 uid;
+	u32 action; /* 1 = DENY, 0 = LOG_ONLY */
+	u8  guid[16];
+} __attribute__((packed));
+
 #endif /* _SENTINEL_MEI_HOOK_H */
