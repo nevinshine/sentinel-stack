@@ -1,6 +1,6 @@
 # Sentinel Stack
 
-### Deterministic, Kernel-Native Defense from Ring -1 to Layer 7
+### Deterministic, Kernel-Native Defense from Ring -3 to Layer 7
 
 <p align="center">
   <img src="https://img.shields.io/badge/Hypervisor-AMD--V%20%2F%20ARMv8-orange?style=for-the-badge&logo=amd" />
@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/Version-1.0--rc1-blue?style=for-the-badge" />
 </p>
 
-The Sentinel Stack is a unified, kernel-native defense quadrant designed to bridge the semantic gap between a program's compile-time intent and its runtime enforcement. It establishes a deterministic, cross-layer defense architecture spanning from Ring -1 hardware virtualization up to Layer 7 MCP (Model Context Protocol) semantics.
+The Sentinel Stack is a unified, kernel-native defense quadrant designed to bridge the semantic gap between a program's compile-time intent and its runtime enforcement. It establishes a deterministic, cross-layer defense architecture spanning from Ring -3 hardware and firmware isolation up to Layer 7 MCP (Model Context Protocol) semantics.
 
 ---
 
@@ -20,6 +20,7 @@ Traditional security tools trust the operating system. If a rootkit takes over t
 
 **The Sentinel Stack eliminates these assumptions.** It deploys independent enforcement at every hardware and software layer simultaneously:
 
+- **Below the firmware** — Hardware-enforced System Management Mode (Ring -2) policies and Intel ME (Ring -3) interdiction neutralize low-level persistent threats.
 - **Below the kernel** — A hypervisor introspection engine monitors the OS from Ring -1. Even a fully compromised kernel cannot detect or disable it.
 - **Inside the kernel** — eBPF-LSM hooks intercept every `execve()`, `connect()`, and `file_open()` system call, enforcing taint-aware Information Flow Control.
 - **At the network card** — XDP programs drop malicious packets at wire-speed before the Linux network stack even sees them.
