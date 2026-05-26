@@ -23,10 +23,11 @@ Documentation=man:sentinel-loader(1)
 After=network.target
 
 [Service]
-Type=simple
+Type=notify
 ExecStart=/usr/local/bin/sentinel-loader --audit --audit-format=json --audit-target=syslog %I
 Restart=on-failure
-RestartSec=5
+RestartSec=2
+WatchdogSec=10s
 
 # Security hardening
 NoNewPrivileges=yes
