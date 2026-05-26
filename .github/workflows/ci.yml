@@ -129,3 +129,11 @@ jobs:
       - name: Test Sentinel-CC
         working-directory: sentinel-cc
         run: sudo make test
+
+      - name: Setup Go for Integration Tests
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Test Cross-Layer Enforcement Parity
+        run: sudo bash tests/integration/test_cross_layer_parity.sh

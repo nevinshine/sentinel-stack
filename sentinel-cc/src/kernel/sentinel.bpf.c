@@ -20,6 +20,14 @@
 // selects kernel u8/u32/u64 types — no manual #define needed.
 #include "../common/sentinel_shared.h"
 
+#ifndef EPERM
+#define EPERM 1
+#endif
+
+#ifndef AF_INET
+#define AF_INET 2
+#endif
+
 // --- Global config (set by loader) ---
 volatile const __u32 audit_mode = 0; // 0 = fast path, 1 = verbose audit
 volatile const __u32 fexit_mode = 0; // 0 = disabled, 1 = post-syscall audit
@@ -122,6 +130,14 @@ struct {
   __type(key, u64);
   __type(value, u32);
 } lib_allow_map SEC(".maps");
+
+// 12. Cross-Layer Network Policy (IPv4 → 1)
+struct {
+  __uint(type, BPF_MAP_TYPE_HASH);
+  __uint(max_entries, 1024);
+  __type(key, __u32);   // IPv4 address
+  __type(value, __u32); // 1 = block
+} blocklist_map SEC(".maps");
 
 // Global: 0 = cgroup filtering disabled, 1 = only enforce in listed cgroups
 volatile const __u32 cgroup_filter = 0;
@@ -609,6 +625,23 @@ int BPF_PROG(sentinel_fork_track, struct task_struct *parent,
     emit_audit(parent_tgid, child_tgid, 0, 0, 0, 0, EVENT_FORK_TRACK);
   }
   return 0;
+}
+
+SEC("lsm/socket_connect")
+int BPF_PROG(sentinel_socket_connect, struct socket *sock, struct sockaddr *address, int addrlen)
+{
+    if (address->sa_family != AF_INET)
+        return 0;
+
+    struct sockaddr_in *addr_in = (struct sockaddr_in *)address;
+    __u32 dest_ip = addr_in->sin_addr.s_addr;
+
+    __u32 *blocked = bpf_map_lookup_elem(&blocklist_map, &dest_ip);
+    if (blocked && *blocked == 1) {
+        bpf_printk("Sentinel [LSM-BLOCK] Outbound connection denied to %x", dest_ip);
+        return -EPERM;
+    }
+    return 0; // Allow by default
 }
 
 char LICENSE[] SEC("license") = "GPL";
