@@ -407,22 +407,36 @@ static int parse_sentinel_section(const char *binary_path, uint64_t *offsets,
       text_addr = shdr.sh_addr;
   }
 
-  if (!sentinel_data || sentinel_data->d_size == 0)
+  if (!sentinel_data || sentinel_data->d_size < 8) {
+    fprintf(stderr, "[FATAL] Invalid or missing .sentinel section.\n");
     goto out;
+  }
 
   if (text_base_out)
     *text_base_out = text_addr;
 
+  uint32_t magic = *(uint32_t *)sentinel_data->d_buf;
+  uint32_t version = *((uint32_t *)sentinel_data->d_buf + 1);
+
+  if (magic != SENTINEL_POLICY_MAGIC) {
+    fprintf(stderr, "[FATAL] Invalid policy magic: 0x%08x\n", magic);
+    goto out;
+  }
+  if (version != SENTINEL_POLICY_VERSION) {
+    fprintf(stderr, "[FATAL] Invalid policy version: %u (expected %u)\n", version, SENTINEL_POLICY_VERSION);
+    goto out;
+  }
+
   // Each entry is { void *site, void *function, int64_t size } = 24 bytes
   size_t entry_size = sizeof(struct sentinel_policy_entry);
-  int n = sentinel_data->d_size / entry_size;
+  int n = (sentinel_data->d_size - 8) / entry_size;
 
-  printf("[Loader] .sentinel section: %d entries (%zu bytes)\n", n,
+  printf("[Loader] .sentinel section: v%u, %d entries (%zu bytes)\n", version, n,
          sentinel_data->d_size);
 
   for (int i = 0; i < n && count < max_entries; i++) {
     struct sentinel_policy_entry *pe =
-        (struct sentinel_policy_entry *)((char *)sentinel_data->d_buf +
+        (struct sentinel_policy_entry *)((char *)sentinel_data->d_buf + 8 +
                                          i * entry_size);
     // Skip dummy/null entries
     if (pe->site_addr == 0)

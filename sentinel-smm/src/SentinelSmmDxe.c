@@ -6,6 +6,7 @@
 #include <Library/IoLib.h>
 #include <Library/PciLib.h>
 #include <Protocol/S3SaveState.h>
+#include <Library/CpuLib.h>
 #include "SentinelSharedBuffer.h"
 #include "SentinelSmmCpuContext.h"
 #include "SentinelSpiLockdown.h"
@@ -396,9 +397,8 @@ SentinelSmmDxeEntry (
   Status = EnforceSpiLockdown ();
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "[SentinelSmm] CRITICAL: SPI Lockdown failed "
-            "(Status = %r). Continuing with reduced protection.\n", Status));
-    // Non-fatal: the I/O and MSR policies still provide defense.
-    // Fail-open on lockdown to avoid bricking during development.
+            "(Status = %r). HALTING BOOT PROCESS.\n", Status));
+    CpuDeadLoop ();
   }
 
   DEBUG ((DEBUG_INFO, "\n[SentinelSmm] =======================================\n"));

@@ -331,15 +331,27 @@ struct SentinelPass : public PassInfoMixin<SentinelPass> {
     ArrayType *ArrayTy = ArrayType::get(PolicyEntryTy, PolicyEntries.size());
     Constant *ArrayInit = ConstantArray::get(ArrayTy, PolicyEntries);
 
+    // Phase 4: Enforce Policy Header Magic/Version
+    StructType *HeaderTy = StructType::create(Ctx, "struct.SentinelHeader");
+    HeaderTy->setBody({Type::getInt32Ty(Ctx), Type::getInt32Ty(Ctx)});
+    Constant *HeaderInit = ConstantStruct::get(HeaderTy, {
+        ConstantInt::get(Type::getInt32Ty(Ctx), 0x53454E54U), // SENTINEL_POLICY_MAGIC
+        ConstantInt::get(Type::getInt32Ty(Ctx), 2)            // SENTINEL_POLICY_VERSION
+    });
+
+    StructType *SectionTy = StructType::create(Ctx, "struct.SentinelSection");
+    SectionTy->setBody({HeaderTy, ArrayTy});
+    Constant *SectionInit = ConstantStruct::get(SectionTy, {HeaderInit, ArrayInit});
+
     GlobalVariable *PolicyTable =
-        new GlobalVariable(M, ArrayTy, true, GlobalValue::ExternalLinkage,
-                           ArrayInit, "__sentinel_policy");
+        new GlobalVariable(M, SectionTy, true, GlobalValue::ExternalLinkage,
+                           SectionInit, "__sentinel_policy");
 
     PolicyTable->setSection(".sentinel");
     PolicyTable->setAlignment(Align(16));
 
     if (!PolicyEntries.empty()) {
-      errs() << "[Sentinel] Injected " << PolicyEntries.size()
+      errs() << "[Sentinel] Injected header + " << PolicyEntries.size()
              << " precise entries into .sentinel section.\n";
     }
 

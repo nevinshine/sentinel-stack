@@ -29,10 +29,16 @@ Restart=on-failure
 RestartSec=5
 
 # Security hardening
-NoNewPrivileges=no
+NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
 ReadWritePaths=/sys/fs/bpf /sys/kernel/debug
 
 # BPF requires elevated privileges
