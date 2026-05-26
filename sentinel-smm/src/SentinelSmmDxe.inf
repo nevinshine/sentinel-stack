@@ -24,5 +24,9 @@
   IoLib
   PciLib
 
+[Protocols]
+  gEfiS3SaveStateProtocolGuid
+
 [Depex]
   TRUE
+

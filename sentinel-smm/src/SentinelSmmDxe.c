@@ -5,9 +5,11 @@
 #include <Library/MemoryAllocationLib.h>
 #include <Library/IoLib.h>
 #include <Library/PciLib.h>
+#include <Protocol/S3SaveState.h>
 #include "SentinelSharedBuffer.h"
 #include "SentinelSmmCpuContext.h"
 #include "SentinelSpiLockdown.h"
+
 
 // ----------------------------------------------------------------------------
 // Policy Data Structures
@@ -46,22 +48,45 @@ static const UINT32 SafeMsrList[] = {
 //   7. Clear BIOSWE to disable flash writes
 // ----------------------------------------------------------------------------
 
+#ifndef EFI_BOOT_SCRIPT_PCI_ADDRESS
+#define EFI_BOOT_SCRIPT_PCI_ADDRESS(bus, dev, func, reg) \
+    (UINT64) ((((UINTN) (bus)) << 24) | (((UINTN) (dev)) << 16) | (((UINTN) (func)) << 8) | ((UINTN) (reg)))
+#endif
+
 static EFI_STATUS
 EnforceSpiLockdown (
     VOID
     )
 {
-    UINT32  RcbaRaw;
-    UINT32  RcbaBase;
-    UINT32  SpiBar;
-    UINT32  Hsfs;
-    UINT32  Freg2;
-    UINT32  MeBase;
-    UINT32  MeLimit;
-    UINT32  Pr0Value;
-    UINT8   BiosCntl;
+    UINT32                      RcbaRaw;
+    UINT32                      RcbaBase;
+    UINT32                      SpiBar;
+    UINT32                      Hsfs;
+    UINT32                      Freg2;
+    UINT32                      MeBase;
+    UINT32                      MeLimit;
+    UINT32                      Pr0Value;
+    UINT8                       BiosCntl;
+    EFI_S3_SAVE_STATE_PROTOCOL  *S3SaveState;
+    EFI_STATUS                  S3Status;
+    UINT32                      HsfsValue;
+
 
     DEBUG ((DEBUG_INFO, "[SentinelSmm] --- Phase 3: SPI Flash Hardware Lockdown ---\n"));
+
+    // Locate the S3 Save State protocol to record S3 resume boot scripts
+    S3Status = gBS->LocateProtocol (
+                      &gEfiS3SaveStateProtocolGuid,
+                      NULL,
+                      (VOID **)&S3SaveState
+                      );
+    if (EFI_ERROR (S3Status)) {
+        DEBUG ((DEBUG_WARN, "[SentinelSmm] WARNING: EFI_S3_SAVE_STATE_PROTOCOL not found. "
+                "S3 resume protections will NOT be re-asserted on wake.\n"));
+        S3SaveState = NULL;
+    } else {
+        DEBUG ((DEBUG_INFO, "[SentinelSmm] Found EFI_S3_SAVE_STATE_PROTOCOL. S3 resume hooks enabled.\n"));
+    }
 
     // ========================================================================
     // Step 1: Locate the Root Complex Base Address (RCBA)
@@ -190,8 +215,71 @@ EnforceSpiLockdown (
                 "some bits did not latch.\n"));
     }
 
+    // ========================================================================
+    // Step 6: Record S3 Resume Lockdown Opcodes in S3 Boot Script Table
+    // ========================================================================
+    if (S3SaveState != NULL) {
+        UINT64 PciAddress;
+        UINT64 MemoryAddress;
+
+        DEBUG ((DEBUG_INFO, "[SentinelSmm] Recording S3 Save State Boot Script opcodes...\n"));
+
+        // 1. Record LPC BIOS_CNTL PCI Config Write
+        PciAddress = EFI_BOOT_SCRIPT_PCI_ADDRESS (LPC_BUS, LPC_DEV, LPC_FUNC, R_BIOS_CNTL);
+        S3Status = S3SaveState->Write (
+                                  S3SaveState,
+                                  0, // BootScriptMask
+                                  EFI_BOOT_SCRIPT_PCI_CONFIG_WRITE_OPCODE,
+                                  EfiBootScriptWidthUint8,
+                                  PciAddress,
+                                  (UINTN)1,
+                                  &BiosCntl
+                                  );
+        if (EFI_ERROR (S3Status)) {
+            DEBUG ((DEBUG_ERROR, "[SentinelSmm] S3 Save State: Failed to record BIOS_CNTL write: %r\n", S3Status));
+        } else {
+            DEBUG ((DEBUG_INFO, "[SentinelSmm] S3 Save State: Recorded BIOS_CNTL write (Value: 0x%02X)\n", BiosCntl));
+        }
+
+        // 2. Record SPI MMIO PR0 Protection Memory Write
+        MemoryAddress = (UINT64)(SpiBar + R_PR0);
+        S3Status = S3SaveState->Write (
+                                  S3SaveState,
+                                  0, // BootScriptMask
+                                  EFI_BOOT_SCRIPT_MEM_WRITE_OPCODE,
+                                  EfiBootScriptWidthUint32,
+                                  MemoryAddress,
+                                  (UINTN)1,
+                                  &Pr0Value
+                                  );
+        if (EFI_ERROR (S3Status)) {
+            DEBUG ((DEBUG_ERROR, "[SentinelSmm] S3 Save State: Failed to record PR0 memory write: %r\n", S3Status));
+        } else {
+            DEBUG ((DEBUG_INFO, "[SentinelSmm] S3 Save State: Recorded PR0 memory write (Value: 0x%08X)\n", Pr0Value));
+        }
+
+        // 3. Record SPI MMIO HSFS FLOCKDN Latch Memory Write (MUST be absolute last SPI controller write)
+        HsfsValue = Hsfs | B_HSFS_FLOCKDN;
+        MemoryAddress = (UINT64)(SpiBar + R_HSFS);
+        S3Status = S3SaveState->Write (
+                                  S3SaveState,
+                                  0, // BootScriptMask
+                                  EFI_BOOT_SCRIPT_MEM_WRITE_OPCODE,
+                                  EfiBootScriptWidthUint32,
+                                  MemoryAddress,
+                                  (UINTN)1,
+                                  &HsfsValue
+                                  );
+        if (EFI_ERROR (S3Status)) {
+            DEBUG ((DEBUG_ERROR, "[SentinelSmm] S3 Save State: Failed to record HSFS memory write: %r\n", S3Status));
+        } else {
+            DEBUG ((DEBUG_INFO, "[SentinelSmm] S3 Save State: Recorded HSFS memory write (Value: 0x%08X)\n", HsfsValue));
+        }
+    }
+
     DEBUG ((DEBUG_INFO, "[SentinelSmm] --- Phase 3: Complete ---\n"));
     return EFI_SUCCESS;
+
 }
 
 // ----------------------------------------------------------------------------
