@@ -107,3 +107,25 @@ jobs:
         uses: sigstore/gh-action-sigstore-python@v2.1.1
         with:
           inputs: hyperion-xdp/bin/hyperion_ctrl
+
+  build-sentinel-cc:
+    name: Build & Test sentinel-cc
+    runs-on: ubuntu-latest
+    needs: sast-scan
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang llvm libbpf-dev libelf-dev libkeyutils-dev cmake make
+
+      - name: Make Sentinel-CC
+        working-directory: sentinel-cc
+        run: make all
+
+      - name: Test Sentinel-CC
+        working-directory: sentinel-cc
+        run: sudo make test
