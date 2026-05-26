@@ -8,3 +8,5 @@ Module.symvers
 modules.order
 .module-common.o
 sentinel_me_disable
+mock_mei_attack
+

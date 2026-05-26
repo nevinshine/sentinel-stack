@@ -37,10 +37,12 @@ all: utils
 
 utils:
 	$(CC) -O2 -Wall -Wextra -o sentinel_me_disable sentinel_me_disable.c sentinel_bootguard_check.c
+	$(CC) -O2 -Wall -Wextra -o mock_mei_attack mock_mei_attack.c
 
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
-	rm -f sentinel_me_disable
+	rm -f sentinel_me_disable mock_mei_attack
+
 
 # Convenience targets for rapid development iteration
 load: all

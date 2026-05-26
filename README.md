@@ -96,7 +96,9 @@ graph TD
 
 | Execution Layer | Sentinel Component | Primary Technology & Enforcement | Strategic Objective |
 |:------|:------|:------|:------|
+| Ring -3 (Co-processor) | [`sentinel-smm/src/mei`](sentinel-smm/src/mei/) | HECI Kprobes LKM / MKHI | Ring 0 host↔ME telemetric monitoring, administrative HECI interdiction |
 | Ring -2 (Firmware) | [`sentinel-smm`](sentinel-smm/) | UEFI DXE / ASM / x86 MSRs | Out-of-band System Management Mode sandboxing, SPI flash defense |
+
 | Ring -1 (Hypervisor) | [`sentinel-vmi`](sentinel-vmi/) | AMD-V / NPT Guard / ARMv8 EL2 | Out-of-band Hypervisor Introspection, memory monitoring |
 | Ring 0 (Compile) | `sentinel-cc` | LLVM / Policy-Carrying Code | Compile-time intent validation, Deep CFI, ASLR-aware enforcement |
 | Ring 0 (Runtime) | [`telos-runtime`](telos-runtime/) | eBPF-LSM | Intent correlation, Information Flow Control (IFC), and Taint Tracking |
