@@ -58,3 +58,33 @@ void handle_sync_lower(uint64_t *regs) {
         while(1) { __asm__ volatile("wfe"); }
     }
 }
+
+#include <linux/kvm.h>
+#include <sys/ioctl.h>
+#include <stdio.h>
+
+// Scaffolded production VM-Exit loop
+void sentinel_vcpu_run(int vcpu_fd, struct kvm_run *run) {
+    while (1) {
+        if (ioctl(vcpu_fd, KVM_RUN, 0) < 0) {
+            perror("KVM_RUN failed");
+            break;
+        }
+
+        switch (run->exit_reason) {
+            case KVM_EXIT_MMIO:
+                printf("[VM-EXIT] MMIO trap at physical address: 0x%llx\n", run->mmio.phys_addr);
+                // TODO: Route to Sentinel MMIO policy engine
+                break;
+            case KVM_EXIT_SYSTEM_EVENT:
+                printf("[VM-EXIT] Guest triggered system event (shutdown/reset).\n");
+                return;
+            case KVM_EXIT_FAIL_ENTRY:
+                printf("[FATAL] Hardware failed to enter guest.\n");
+                return;
+            default:
+                printf("[VM-EXIT] Unhandled exit reason: %d\n", run->exit_reason);
+                return;
+        }
+    }
+}
