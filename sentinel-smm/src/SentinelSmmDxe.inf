@@ -1,0 +1,26 @@
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = SentinelSmmDxe
+  FILE_GUID                      = 7b483c79-e588-4c8d-b089-22db146a4d77
+  MODULE_TYPE                    = DXE_SMM_DRIVER
+  VERSION_STRING                 = 1.0
+  PI_SPECIFICATION_VERSION       = 0x0001000A
+  ENTRY_POINT                    = SentinelSmmDxeEntry
+
+[Sources]
+  SentinelSmmDxe.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  SentinelSmm/SentinelSmm.dec
+
+[LibraryClasses]
+  UefiDriverEntryPoint
+  UefiBootServicesTableLib
+  DebugLib
+  MemoryAllocationLib
+  BaseMemoryLib
+
+[Depex]
+  TRUE

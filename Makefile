@@ -35,4 +35,4 @@ clean:
 	rm -rf $(BIN_DIR)
 	$(MAKE) -C telos-runtime clean
 	$(MAKE) -C hyperion-xdp clean
-	cd telos-lang && cargo clean
+	cd telos-lang/telosc && cargo clean

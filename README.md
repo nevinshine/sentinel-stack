@@ -312,6 +312,22 @@ sudo cargo run tests/hello_world.telos
 > [!CAUTION]
 > When Hyperion is attached to a physical NIC, XDP drops are **irreversible** at the hardware level. Blacklisted IPs experience 100% packet loss. Use loopback (`-iface lo`) for testing.
 
+### Hyperion XDP IPC API
+
+Hyperion exposes a Unix Domain Socket at `/tmp/hyperion.sock` for dynamic, wire-speed policy updates from the Cortex AI engine.
+
+**JSON Schema:**
+```json
+{
+  "command": "<add_signature | block_ip>",
+  "payload": "<signature_string | ipv4_address>"
+}
+```
+
+**Examples:**
+*   `{"command": "block_ip", "payload": "10.0.0.5"}` — Immediately drops all packets from `10.0.0.5` at Layer 2.
+*   `{"command": "add_signature", "payload": "malware"}` — Injects a new deep-packet signature into the eBPF policy map.
+
 ---
 
 ## Performance

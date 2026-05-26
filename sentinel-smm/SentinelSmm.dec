@@ -1,0 +1,8 @@
+[Defines]
+  DEC_SPECIFICATION              = 0x00010005
+  PACKAGE_NAME                   = SentinelSmm
+  PACKAGE_GUID                   = 3f28f0de-4b11-479c-9c7a-8b1e194e1d30
+  PACKAGE_VERSION                = 1.0
+
+[Includes]
+  include
