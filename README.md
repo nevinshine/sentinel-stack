@@ -96,6 +96,7 @@ graph TD
 
 | Execution Layer | Sentinel Component | Primary Technology & Enforcement | Strategic Objective |
 |:------|:------|:------|:------|
+| Ring -2 (Firmware) | [`sentinel-smm`](sentinel-smm/) | UEFI DXE / ASM / x86 MSRs | Out-of-band System Management Mode sandboxing, SPI flash defense |
 | Ring -1 (Hypervisor) | [`sentinel-vmi`](sentinel-vmi/) | AMD-V / NPT Guard / ARMv8 EL2 | Out-of-band Hypervisor Introspection, memory monitoring |
 | Ring 0 (Compile) | `sentinel-cc` | LLVM / Policy-Carrying Code | Compile-time intent validation, Deep CFI, ASLR-aware enforcement |
 | Ring 0 (Runtime) | [`telos-runtime`](telos-runtime/) | eBPF-LSM | Intent correlation, Information Flow Control (IFC), and Taint Tracking |
@@ -107,6 +108,16 @@ graph TD
 ---
 
 ## Components
+
+### sentinel-smm — Ring -2 SMM Supervisor
+
+Operates in System Management Mode (SMM), the highest privilege level on x86, to sandbox and neuter third-party CPL3 System Management Interrupt (SMI) handlers. Protects against firmware-level bootkits by enforcing strict, hardware-level "Default Deny" policies.
+
+**Key capabilities:**
+- Hardware-enforced `#GP` exception traps for privileged operations (MSRs, I/O)
+- Ultra-low latency $O(1)$ Bitmap policy enforcement engine to prevent system jitter
+- Cryptographically verified `SentinelSharedBuffer` for SPI flash operations
+- Neutralizes Ring -2 rootkits (e.g. SinkClose) prior to OS and Hypervisor execution
 
 ### sentinel-vmi — Ring -1 Hypervisor Introspection
 
