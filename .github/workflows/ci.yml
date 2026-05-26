@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       # Automated AST tree-sitter scanning (Semgrep)
       - name: Semgrep SAST
@@ -38,6 +40,8 @@ jobs:
     needs: sast-scan
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -61,6 +65,8 @@ jobs:
     needs: sast-scan
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -81,6 +87,8 @@ jobs:
     needs: sast-scan
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       
       - name: Setup Go
         uses: actions/setup-go@v5
