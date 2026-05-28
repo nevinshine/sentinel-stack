@@ -107,7 +107,7 @@ The legacy standalone XDP binary was fully absorbed into the `telos_daemon`. The
 
 ### 4. Cross-Process IPC Taint Tracking
 Advanced adversarial payloads leverage Inter-Process Communication (IPC) to pass execution to benign, high-privilege sidecars. Sentinel counters this using cluster-wide infection tracking across UNIX Domain Sockets:
-- **BPF Local Storage (`SK_STORAGE` & `TASK_STORAGE`):** Mathematically eliminates kernel memory leaks and lock contention by binding the taint flags directly to the lifecycle of the kernel's socket and task structs.
+- **BPF Local Storage (`SK_STORAGE` & `TASK_STORAGE`):** Avoids external synchronization overhead and memory leaks by binding taint metadata directly to the lifecycle of the kernel's socket and task structs.
 - **BTF-Native Inheritance (`lsm/socket_sock_rcv_skb`):** When a clean server reads from a tainted socket, the inheritance hook securely passes the taint to the receiving process, extracting the newly infected Kubernetes `cgroup_id` dynamically to inform the Python Cortex engine.
 
 ---
@@ -401,7 +401,7 @@ Benchmarked using the `sentinel_strike` C test suite under **10 Million operatio
 
 - **CPU:** AMD Ryzen 7 PRO 5850U (8 Cores / 16 Threads)
 - **RAM:** 32GB
-- **Kernel:** Linux 7.0.9-105.fc43.x86_64
+- **Kernel:** Linux 6.8+ (Fedora 43)
 - **NIC:** virtio-net / CNI Virtual Interfaces (veth)
 - **Environment:** KVM Virtualized Environment (Fedora/K3s)
 - **Threads:** 16 pinned worker threads
