@@ -357,7 +357,7 @@ Hyperion exposes a Unix Domain Socket at `/tmp/hyperion.sock` for dynamic, wire-
 
 ---
 
-## Performance
+## Performance & Benchmarks
 
 Benchmarked under **10 Million operations** across **100 concurrent threads** on native Linux:
 
@@ -369,6 +369,12 @@ Benchmarked under **10 Million operations** across **100 concurrent threads** on
 
 > [!NOTE]
 > Sub-microsecond map lookups. Zero-copy ringbuf telemetry. Production-grade overhead at enterprise scale. The LLM is **never** in the hot path — all ALLOW and DENY decisions are purely deterministic O(1) lookups.
+
+### The Ring Buffer Saturation Envelope
+
+Sentinel includes an automated [Benchmark Suite](tests/benchmarks/README.md) (`tests/benchmarks/`) to deterministically measure the performance delta between the Ring 0 data plane and the User-Space control plane.
+
+When subjected to volumetric network floods, the eBPF kernel enforcement scales linearly at wire-speed, blocking 100% of malicious attempts. The user-space daemon relies on an asynchronous 256KB Ring Buffer to extract telemetry without locking up the host CPU. The Benchmark Suite automatically generates a **Saturation Curve** demonstrating that security enforcement remains perfectly intact while the observability telemetry gently flattens out, proving that the host CPU is protected under heavy fire.
 
 ---
 

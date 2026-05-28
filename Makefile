@@ -18,7 +18,6 @@ $(BIN_DIR):
 telos-runtime: $(BIN_DIR)
 	@echo "Building Telos Runtime..."
 	$(MAKE) -C telos-runtime all
-	cp telos-runtime/bin/bpf_lsm.o $(BIN_DIR)/
 	cp telos-runtime/bin/telos_daemon $(BIN_DIR)/
 
 hyperion-xdp: $(BIN_DIR)
@@ -42,7 +41,52 @@ sentinel-cc: $(BIN_DIR)
 
 clean:
 	rm -rf $(BIN_DIR)
+	rm -rf release_payload
+	rm -f sentinel-release.tar.gz
 	$(MAKE) -C telos-runtime clean
 	$(MAKE) -C hyperion-xdp clean
 	$(MAKE) -C sentinel-cc clean
 	cd telos-lang/telosc && cargo clean
+
+.PHONY: release
+release: clean
+	@echo "Building Sentinel Stack Release Payload..."
+	mkdir -p release_payload/x86_64 release_payload/arm64 release_payload/src/mei release_payload/src/vmi
+	
+	@echo "Cross-compiling for x86_64..."
+	GOARCH=amd64 $(MAKE) -C telos-runtime all
+	GOARCH=amd64 $(MAKE) -C hyperion-xdp build
+	cp telos-runtime/bin/telos_daemon release_payload/x86_64/
+	cp hyperion-xdp/bin/hyperion_ctrl release_payload/x86_64/
+	cp telos-runtime/bin/sentinelctl release_payload/x86_64/
+	
+	@echo "Cross-compiling for arm64..."
+	GOARCH=arm64 $(MAKE) -C telos-runtime all
+	GOARCH=arm64 $(MAKE) -C hyperion-xdp build
+	cp telos-runtime/bin/telos_daemon release_payload/arm64/
+	cp hyperion-xdp/bin/hyperion_ctrl release_payload/arm64/
+	cp telos-runtime/bin/sentinelctl release_payload/arm64/
+	
+	@echo "Packaging raw C source components..."
+	cp -r sentinel-smm/src/mei/* release_payload/src/mei/
+	cp -r sentinel-vmi/* release_payload/src/vmi/
+	
+	@echo "Packaging Red Team Exploit Suite..."
+	mkdir -p release_payload/red_team
+	make -C tests/red_team
+	cp tests/red_team/sentinel_strike release_payload/red_team/
+	cp tests/red_team/sentinel_strike_ring0 release_payload/red_team/
+	
+	@echo "Creating deployment tarball..."
+	tar -czf sentinel-release.tar.gz -C release_payload .
+	@echo "✓ sentinel-release.tar.gz created."
+
+.PHONY: lab-up
+lab-up:
+	@echo "Spinning up Vagrant Digital Twin..."
+	vagrant up
+
+.PHONY: lab-deploy
+lab-deploy: release
+	@echo "Deploying to Vagrant Digital Twin via Ansible..."
+	ansible-playbook -i ansible/vagrant.yml ansible/deploy.yml
