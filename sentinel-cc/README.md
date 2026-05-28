@@ -1,6 +1,6 @@
 # Sentinel-CC: Policy-Carrying Code Enforcement
 
-**Sentinel-CC** is a security architecture that enforces compile-time intent at runtime. It eliminates the semantic gap between "what the compiler sees" and "what the kernel executes" by embedding security policies directly into the binary and determining execution validity via a cryptographic trust chain.
+**Sentinel-CC** is a security architecture that enforces compile-time intent at runtime. It correlates "what the compiler sees" with "what the kernel executes" by embedding security policies directly into the binary and determining execution validity via a cryptographic trust chain.
 
 > [!IMPORTANT]
 > **Core Concept: Policy-Carrying Code (PCC)**
@@ -116,7 +116,7 @@ src/cli/
 tests/
 ├── victim.c            # Phase 1 test (inline syscalls)
 ├── victim_phase2.c     # Phase 2 test (shared library / ASLR)
-├── victim_cfi.c        # Deep CFI test (caller validation)
+├── victim_cfi.c        # Call-Stack Validation test (caller validation)
 ├── victim_threaded.c   # Multithreading stability test
 ├── victim_fork.c       # Fork tracking test
 ├── victim_bench.c      # Syscall latency microbenchmark

@@ -155,7 +155,7 @@ Operates natively at the hardware and firmware levels to isolate the OS from opa
 - Cryptographically verified `SentinelSharedBuffer` for SPI flash hardware lockdown
 - S3 Boot Script Table hook to guarantee `FLOCKDN` and `PR0` registers persist across ACPI sleep states
 - Ring -3 HECI interdiction via LKM Kprobes to block restricted Intel ME client GUIDs (AMT, ICC)
-- Neutralizes Ring -2 rootkits (e.g., SinkClose) prior to OS and Hypervisor execution
+- Theoretical mitigation for Ring -2 rootkits (e.g., SinkClose) prior to OS and Hypervisor execution
 
 ### sentinel-vmi — Ring -1 Hypervisor Introspection
 
@@ -180,9 +180,9 @@ Enforces compile-time intent at runtime to eliminate the semantic gap between co
 - Shadow stack Control Flow Integrity (CFI) to detect ROP chains and stack smashing
 
 
-### telos-runtime — Intent-Based AI Security
+### telos-runtime — Intent-Based Runtime Security
 
-Enforces AI agent behavior through Natural Language Intent Declarations, eBPF-LSM syscall gates, and real-time Information Flow Control. Implements the Dual-Gate Architecture (Execution Gate + Network Gate) with cross-vector taint tracking. If a process touches sensitive files, all network access is permanently revoked (Network Slam).
+Enforces expected behavior through Natural Language Intent Declarations, eBPF-LSM syscall gates, and real-time Information Flow Control. Implements the Dual-Gate Architecture (Execution Gate + Network Gate) with cross-vector taint tracking. If a process touches sensitive files, all network access is permanently revoked (Network Slam).
 
 **Key capabilities:**
 - Kubernetes Native: Deploys as a zero-trust DaemonSet sidecar with `client-go` informer-driven cgroup-to-pod mapping.
@@ -413,7 +413,7 @@ Benchmarked using the `sentinel_strike` C test suite under **10 Million operatio
   - `BPF_MAP_TYPE_TASK_STORAGE`
   - `BPF_MAP_TYPE_SK_STORAGE`
 
-| Syscall Hook | Native Baseline | Sentinel Guarded | Overhead |
+| Syscall Hook | Uninstrumented Baseline | Sentinel Guarded | Overhead |
 |:-------------|:---------------:|:----------------:|:--------:|
 | `file_open` (IO) | 26.51 us | 28.79 us | +2.27 us (+8.5%) |
 | `bprm_check_security` (Exec) | 6431 us | 6625 us | +193 us (+3.0%) |
@@ -426,7 +426,7 @@ Benchmarked using the `sentinel_strike` C test suite under **10 Million operatio
 
 Sentinel includes an automated [Benchmark Suite](tests/benchmarks/README.md) (`tests/benchmarks/`) to deterministically measure the performance delta between the Ring 0 data plane and the User-Space control plane.
 
-When subjected to volumetric network floods, the eBPF kernel enforcement scales linearly at wire-speed, blocking 100% of malicious attempts. The user-space daemon relies on an asynchronous 256KB Ring Buffer to extract telemetry without locking up the host CPU. The Benchmark Suite automatically generates a **Saturation Curve** demonstrating that security enforcement remains perfectly intact while the observability telemetry gently flattens out, proving that the host CPU is protected under heavy fire.
+When subjected to volumetric network floods, the eBPF kernel enforcement scales linearly at wire-speed, blocking 100% of malicious attempts. The user-space daemon relies on an asynchronous 256KB Ring Buffer to extract telemetry without locking up the host CPU. The Benchmark Suite automatically generates a **Saturation Curve** demonstrating that security enforcement remains perfectly intact while the observability telemetry gently flattens out, proving that the host CPU is protected under heavy fire. (Note: Critical enforcement events are persistently logged; only best-effort observability streams are selectively shed under extreme saturation to ensure fail-safe operation without silent data loss).
 
 ---
 
