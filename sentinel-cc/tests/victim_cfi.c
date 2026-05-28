@@ -37,7 +37,7 @@ extern char __sentinel_signature[];
 int main() {
   __asm__ volatile("" : : "r"(__sentinel_signature));
 
-  printf("[Victim] Deep CFI Test Starting...\n");
+  printf("[Victim] Call-Stack CFI Test Starting...\n");
 
   // 1. Valid Call
   safe_caller();

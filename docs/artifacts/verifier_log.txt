@@ -1,0 +1,29 @@
+func#0 @0
+0: R1=ctx(id=0,off=0,imm=0) R10=fp0
+0: (61) r2 = *(u32 *)(r1 +4)
+1: (61) r3 = *(u32 *)(r1 +0)
+2: (bf) r6 = r3
+3: (07) r6 += 34
+4: (2d) if r6 > r2 goto pc+58
+ R1=ctx(id=0,off=0,imm=0) R2=pkt_end(id=0,off=0,imm=0) R3=pkt(id=0,off=0,r=34,imm=0) R6=pkt(id=0,off=34,r=34,imm=0) R10=fp0
+5: (71) r4 = *(u8 *)(r3 +14)
+6: (55) if r4 != 0x45 goto pc+56
+ R1=ctx(id=0,off=0,imm=0) R2=pkt_end(id=0,off=0,imm=0) R3=pkt(id=0,off=0,r=34,imm=0) R4=inv69 R6=pkt(id=0,off=34,r=34,imm=0) R10=fp0
+7: (71) r5 = *(u8 *)(r3 +23)
+8: (55) if r5 != 0x11 goto pc+54
+ R1=ctx(id=0,off=0,imm=0) R2=pkt_end(id=0,off=0,imm=0) R3=pkt(id=0,off=0,r=34,imm=0) R4=inv69 R5=inv17 R6=pkt(id=0,off=34,r=34,imm=0) R10=fp0
+9: (07) r6 += 8
+10: (2d) if r6 > r2 goto pc+52
+ R1=ctx(id=0,off=0,imm=0) R2=pkt_end(id=0,off=0,imm=0) R3=pkt(id=0,off=0,r=42,imm=0) R4=inv69 R5=inv17 R6=pkt(id=0,off=42,r=42,imm=0) R10=fp0
+11: (bf) r7 = r3
+12: (07) r7 += 42
+13: (bf) r8 = r7
+14: (07) r8 += 256
+15: (2d) if r8 > r2 goto pc+47
+ R1=ctx(id=0,off=0,imm=0) R2=pkt_end(id=0,off=0,imm=0) R3=pkt(id=0,off=0,r=298,imm=0) R4=inv69 R5=inv17 R6=pkt(id=0,off=42,r=298,imm=0) R7=pkt(id=0,off=42,r=298,imm=0) R8=pkt(id=0,off=298,r=298,imm=0) R10=fp0
+16: (71) r9 = *(u8 *)(r7 +0)
+17: (15) if r9 == 0x0 goto pc+44
+... <unrolled loop O(N) evaluation bounded by 255 iterations>
+204: (b7) r0 = 1
+205: (95) exit
+processed 206 insns (limit 1000000) max_states_per_insn 1 total_states 16 peak_states 16 mark_read 2

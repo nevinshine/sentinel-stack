@@ -55,7 +55,7 @@ victim_phase2: $(TESTS)/victim_phase2.c $(SRC_COMPILER)/build/SentinelPass.so si
 	$(CLANG) -fpass-plugin=$(SRC_COMPILER)/build/SentinelPass.so -O2 $(TESTS)/victim_phase2.c -o victim_phase2
 	./sign_tool victim_phase2 priv.pem
 
-# 4c. Phase 2.2: CFI Victim (Deep CFI Test)
+# 4c. Phase 2.2: CFI Victim (Call-Stack CFI Test)
 victim_cfi: $(TESTS)/victim_cfi.c $(SRC_COMPILER)/build/SentinelPass.so sign_tool keys
 	$(CLANG) -fpass-plugin=$(SRC_COMPILER)/build/SentinelPass.so -g -O0 -no-pie $(TESTS)/victim_cfi.c -o victim_cfi
 	./sign_tool victim_cfi priv.pem

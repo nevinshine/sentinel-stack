@@ -152,7 +152,7 @@ The kernel-side enforcement engine. Runs in eBPF context with zero-copy overhead
    │  expected_nr = policy_value & 0xFFFFFFFF
    │  if actual_nr ≠ expected_nr → NR_MISMATCH + SIGKILL
    │
-7. Deep CFI check: if offset in cfi_policy:
+7. Call-Stack CFI check: if offset in cfi_policy:
    │  Walk user stack (bpf_get_stack)
    │  if caller_offset ∉ [range.start, range.end] → CFI_FAIL + SIGKILL
    │
@@ -186,7 +186,7 @@ The kernel-side enforcement engine. Runs in eBPF context with zero-copy overhead
 │                                                         │
 │  cfi_policy (HASH)                                      │
 │    key: u64 offset  →  value: {u64 start, u64 end}     │
-│    Valid caller offset range for Deep CFI               │
+│    Valid caller offset range for Call-Stack CFI               │
 │                                                         │
 │  audit_ringbuf (RINGBUF, 256KB)                         │
 │    struct audit_event (48 bytes per event)              │

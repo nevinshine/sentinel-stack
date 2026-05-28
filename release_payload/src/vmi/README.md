@@ -84,7 +84,7 @@ Sentinel VMI is engineered in four progressive phases, each building on the prev
 - Page table walker for guest virtual to physical address translation
 - Guest physical address is not host physical address; KVM memslots are required to translate
 
-**Phase 2: Semantic Gap Bridging**
+**Phase 2: Memory Layout Parsing**
 - BTF-first offset loader with kernel-profile fallback for `task_struct` parsing
 - Process list walker from `init_task` through the entire linked list
 - Expanded extraction: PID, TGID, PPID, `comm`, `mm`, files, namespaces, start time, flags

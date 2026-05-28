@@ -256,7 +256,7 @@ test_phase2() {
 
 # Test: Phase 2.2 CFI victim
 test_cfi() {
-  header "Test: Phase 2.2 — Deep CFI (Caller Validation)"
+  header "Test: Phase 2.2 — Call-Stack CFI (Caller Validation)"
 
   if [ ! -f victim_cfi ]; then
     skip "victim_cfi not built"

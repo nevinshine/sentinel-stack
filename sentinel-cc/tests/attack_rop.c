@@ -7,7 +7,7 @@
 //
 // WHY THIS MATTERS: If Sentinel only checks "is there a syscall instruction
 //         at this offset?" without CFI, a ROP chain could reuse any whitelisted
-//         gadget. Deep CFI (Phase 2.2) should catch the invalid caller.
+//         gadget. Call-Stack CFI (Phase 2.2) should catch the invalid caller.
 //
 // EXPECTED: Sentinel KILLS this because the 'syscall' at the gadget offset
 //           is called from an unauthorized location (main, not whitelisted_write).

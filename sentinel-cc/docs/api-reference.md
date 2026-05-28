@@ -199,7 +199,7 @@ Each slot holds a file descriptor to a per-module hash map containing that modul
 | Key | `u64` (module-relative offset) |
 | Value | `u64` (policy value) |
 
-### `cfi_policy` — Deep CFI Ranges
+### `cfi_policy` — Call-Stack CFI Ranges
 
 | Property | Value |
 |----------|-------|

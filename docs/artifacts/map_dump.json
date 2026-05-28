@@ -1,0 +1,22 @@
+[{
+    "key": 1054,
+    "value": {
+        "taint_level": 2,
+        "cgroup_id": 4294967297,
+        "flags": 1
+    }
+}, {
+    "key": 2108,
+    "value": {
+        "taint_level": 0,
+        "cgroup_id": 4294967297,
+        "flags": 0
+    }
+}, {
+    "key": 3192,
+    "value": {
+        "taint_level": 2,
+        "cgroup_id": 4294967301,
+        "flags": 1
+    }
+}]

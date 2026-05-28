@@ -595,7 +595,7 @@ This runs the full test suite including:
 ```bash
 sudo ./loader ./victim              # Phase 1: Inline syscalls
 sudo ./loader ./victim_phase2       # Phase 2: Shared libraries
-sudo ./loader ./victim_cfi          # Phase 2.2: Deep CFI
+sudo ./loader ./victim_cfi          # Phase 2.2: Call-Stack CFI
 sudo ./loader ./victim_threaded     # Phase 2.3: Multithreading
 sudo ./loader --audit ./victim      # Any test with audit output
 ```
@@ -710,7 +710,7 @@ sudo make red-team
 * **Per-App Filtering (v4.0.0):** If `.sentinel_imports` is present, only reachable libc syscall sites are whitelisted via call-graph BFS. Falls back to full-text scan for legacy binaries.
 * **ld.so coverage:** Dynamic linker syscall sites whitelisted as libc-relative offsets.
 
-### Deep CFI (Call-Stack Validation)
+### Call-Stack CFI (Call-Stack Validation)
 
 Enforces **Control Flow Integrity** by validating not just *where* a syscall happens, but *who called it*.
 

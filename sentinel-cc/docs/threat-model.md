@@ -12,7 +12,7 @@
 | **Code Injection** | `execve` and `mprotect` hooks prevent loading/executing unauthorized code |
 | **Privilege Escalation via ptrace** | `ptrace` hook blocks unauthorized debugger attachment |
 | **Network Exfiltration** | `connect` hook validates that network syscalls come from whitelisted sites |
-| **Caller Spoofing** | Deep CFI validates the call stack, not just the syscall instruction location |
+| **Caller Spoofing** | Call-Stack CFI validates the call stack, not just the syscall instruction location |
 | **ASLR Bypass** | VMA mapping via `/proc/PID/maps` + LPM trie handles randomized addresses |
 | **Thread Race Conditions** | TGID-based tracking covers all threads in a process |
 | **Fileless Malware** | `memfd_create` hook unconditionally blocks anonymous executable creation |
@@ -49,7 +49,7 @@
 
 ### Scenario 2: ROP Chain Targeting Whitelisted Syscall
 **Attack:** ROP chain jumps to a whitelisted `write()` call site with attacker-controlled arguments.
-**Result:** The syscall site offset matches policy, but Deep CFI validates the *caller*. If the return address on the stack doesn't match the expected caller range → SIGKILL. ✓
+**Result:** The syscall site offset matches policy, but Call-Stack CFI validates the *caller*. If the return address on the stack doesn't match the expected caller range → SIGKILL. ✓
 
 ### Scenario 3: dlopen() of Malicious Library
 **Attack:** Binary loads a malicious `.so` that contains syscalls.

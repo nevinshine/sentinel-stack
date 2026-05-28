@@ -95,7 +95,7 @@ struct vma_value {
   S_U64 base_addr;
 } __attribute__((packed));
 
-// --- Deep CFI Range ---
+// --- Call-Stack CFI Range ---
 struct cfi_range {
   S_U64 start;
   S_U64 end;

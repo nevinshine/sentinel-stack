@@ -205,7 +205,7 @@ test_wxorx_attack() {
 # =============================================================================
 test_rop_attack() {
   header "Attack 5: ROP Gadget Reuse (unauthorized caller)"
-  echo -e "  ${CYAN}[Note]${NC} Tests Deep CFI. Without CFI policy, ROP may succeed."
+  echo -e "  ${CYAN}[Note]${NC} Tests Call-Stack CFI. Without CFI policy, ROP may succeed."
   run_attack "attack_rop" "ROP gadget reuse" "expect_partial" "FAIL"
 }
 

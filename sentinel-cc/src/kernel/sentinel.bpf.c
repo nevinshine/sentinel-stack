@@ -1,5 +1,5 @@
 // sentinel.bpf.c — Sentinel-CC eBPF Enforcer
-// Multi-syscall enforcement with audit ring buffer, Deep CFI, and fork tracking
+// Multi-syscall enforcement with audit ring buffer, Call-Stack CFI, and fork tracking
 // Hooks: write, read, openat, execve, mmap, mprotect, connect, ptrace,
 //        memfd_create, process_vm_writev, prctl, sendmsg, dup2, close,
 //        ioctl, seccomp
@@ -72,7 +72,7 @@ struct {
   __type(value, u32);
 } target_pid_map SEC(".maps");
 
-// 5. Deep CFI Policy Map
+// 5. Call-Stack CFI Policy Map
 // Maps Syscall_Offset → {Caller_Start_Offset, Caller_End_Offset}
 // Uses struct cfi_range from sentinel_shared.h
 struct {
@@ -355,7 +355,7 @@ static __always_inline int sentinel_check(void *ctx, u32 syscall_nr) {
     }
   }
 
-  // 8. Deep CFI: Caller Validation (optional, per-site)
+  // 8. Call-Stack CFI: Caller Validation (optional, per-site)
   struct cfi_range *range = bpf_map_lookup_elem(&cfi_policy, &offset);
   if (range) {
     u64 stack[4]; // [0]=current IP, [1]=caller IP

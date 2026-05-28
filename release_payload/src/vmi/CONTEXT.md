@@ -46,7 +46,7 @@ Key technical challenge:
 - Must use KVM memslots to translate
 - No guest cooperation assumed
 
-### Phase 2 — Semantic Gap Bridging
+### Phase 2 — Memory Layout Parsing
 Goal: Parse meaningful kernel data structures from raw bytes.
 
 Components:

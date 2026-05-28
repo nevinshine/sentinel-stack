@@ -23,7 +23,7 @@ While the Go-based daemon handles wire-speed telemetry and rule enforcement, the
 
 ### 3.1 The Sliding-Window Threat Decay Matrix
 Security telemetry is notoriously noisy. To distinguish between administrative mistakes and malicious intent, Cortex implements a sliding-window threat decay matrix. Every Kubernetes Pod is tracked via an internal state map.
-* **Threat Scoring:** Behaviors are weighted mathematically. An unauthorized `execve` might score 10 points, while attempting to bind a raw socket or read `/etc/shadow.sentinel` immediately elevates the threat score by 100 points.
+* **Threat Scoring:** Behaviors are weighted formally. An unauthorized `execve` might score 10 points, while attempting to bind a raw socket or read `/etc/shadow.sentinel` immediately elevates the threat score by 100 points.
 * **Temporal Decay:** To prevent false positives from permanently quarantining a healthy pod, the threat score is subjected to a configurable time-based decay (e.g., `-5 points every 10 seconds`). 
 * **Autonomous Interdiction:** If the aggregate score breaches the critical threshold (e.g., 100), Cortex fires an IPC command back to the `telos_daemon`, injecting an immediate DROP policy into the `bpf_network_map` for that specific Cgroup ID, resulting in immediate network isolation.
 
