@@ -24,10 +24,10 @@ Traditional security tools trust the operating system. If a rootkit takes over t
 - **Below the kernel** — A hypervisor introspection engine monitors the OS from Ring -1. Even a fully compromised kernel cannot detect or disable it.
 - **Inside the kernel** — eBPF-LSM hooks intercept every `execve()`, `connect()`, and `file_open()` system call, enforcing taint-aware Information Flow Control.
 - **At the network card** — XDP programs drop malicious packets at wire-speed before the Linux network stack even sees them.
-- **At compile time** — An LLVM-based policy-carrying code compiler and Z3 formal verification mathematically prove safety before deployment.
+- **At compile time** — An LLVM-based policy-carrying code compiler and Z3 formal verification perform SMT-backed bounded correctness validation before deployment.
 - **In the verification pipeline** — LLVM IR static analysis with SMT-backed memory safety checks and ring-aware attestation policies enforce deterministic trust.
 
-If an AI agent reads `/etc/shadow` and then tries to `curl` the data to an external server, the Sentinel Stack kills the network connection inside the kernel **before the context switch completes**. If a rootkit modifies `sys_call_table`, the hypervisor detects the hardware page fault and flags the PID for wire-speed network isolation. Zero bytes leave the machine.
+If an AI agent reads `/etc/shadow` and then tries to `curl` the data to an external server, the Sentinel Stack kills the network connection inside the kernel **before the context switch completes**. If a rootkit modifies `sys_call_table`, the hypervisor detects the hardware page fault and flags the PID for wire-speed network isolation. This architecture prevents exfiltration through monitored execution paths.
 
 > [!IMPORTANT]
 > The Sentinel Stack assumes the host kernel is compromised. It relies on **out-of-band enforcement** and **hardware-backed immutability** rather than standard, in-band host telemetry. Security is enforced from a higher privilege level than the attack surface.
@@ -129,6 +129,21 @@ Advanced adversarial payloads leverage Inter-Process Communication (IPC) to pass
 
 ---
 
+## Project Maturity
+
+This repository spans multiple deeply technical domains, ranging from production-grade Linux primitives to experimental hardware-level defense mechanisms. Components are classified by their current level of implementation and testing depth:
+
+| Component | Status | Description |
+|:---|:---|:---|
+| **telos-runtime** | Advanced prototype | Deep eBPF-LSM integration with daemonset orchestration and cross-process taint propagation. Extensively tested. |
+| **hyperion-xdp** | Functional | Layer 7 wire-speed drops, verifier-safe unrolled loops. Integrated directly into the telos-daemon. |
+| **sentinel-vmi** | Experimental | AMD-V/ARMv8 Ring -1 hypervisor introspection. Relies heavily on exact hypervisor states and VM configuration. |
+| **sentinel-smm** | Early research | Intel ME and UEFI SMM firmware interdiction. High risk of hardware instability. |
+| **telos-lang** | Research compiler | Rust/LLVM-based SMT verification compiler proving intent-based properties. Proof of concept. |
+| **sentinel-kv** | Prototype | Static memory-safety analyzer for LLVM IR with HITL verification gating. |
+
+---
+
 ## Components
 
 ### sentinel-smm — Ring -2 / Ring -3 Supervisor
@@ -199,11 +214,9 @@ Rust-based compiler translating high-level security intent into Z3-verified eBPF
 **Key capabilities:**
 - Dual-target IR pipeline (x86_64 host + BPF kernel)
 - Static Information Flow Control lattice (`Secret<T>`, `Public<T>`, `Tainted<T>`)
-- Z3 SMT formal verification of all eBPF basic blocks
+- Z3 SMT formal verification proving verifier-compatible memory constraints
 - Fail-closed bootstrap via `llvm.global_ctors` injector
 - Cryptographic boundary casting (SHA-256, AES-GCM declassification)
-- Pipelock MCP synchronization via eBPF ringbuffer
-- AARM SipHash-2-4 forensic receipts
 - Hyperion XDP bridge code generation
 
 ### sentinel-kv — Security-Focused LLVM IR Analyzer
