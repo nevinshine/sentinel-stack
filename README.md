@@ -27,7 +27,7 @@ Traditional security tools trust the operating system. If a rootkit takes over t
 - **Below the kernel (Experimental)** — A hypervisor introspection engine monitors the OS from Ring -1.
 - **Below the firmware (Research)** — Hardware-enforced System Management Mode (Ring -2) policies and Intel ME (Ring -3) interdiction neutralize low-level persistent threats.
 
-If an AI agent reads `/etc/shadow` and then tries to `curl` the data to an external server, the Sentinel Stack kills the network connection inside the kernel **before the context switch completes**. If a rootkit modifies `sys_call_table`, the hypervisor detects the hardware page fault and flags the PID for wire-speed network isolation. This architecture prevents exfiltration through monitored execution paths.
+If an AI agent reads `/etc/shadow` and then tries to `curl` the data to an external server, the Sentinel Stack kills the network connection inside the kernel **before the outbound connection is established**. If a rootkit modifies `sys_call_table`, the hypervisor detects the hardware page fault and flags the PID for wire-speed network isolation. This architecture prevents exfiltration through monitored execution paths.
 
 > [!IMPORTANT]
 > The Sentinel Stack assumes the host kernel is compromised. It relies on **out-of-band enforcement** and **hardware-backed immutability** rather than standard, in-band host telemetry. Security is enforced from a higher privilege level than the attack surface.
@@ -103,7 +103,7 @@ The Go daemon (`telos_daemon`) natively embeds `k8s.io/client-go`. We implemente
 - **`telos-cortex`:** Runs as an isolated Python 3.10 slim sidecar that connects to the Daemon via the `/var/run/telos.sock` shared `emptyDir` volume for out-of-band Domain Classification.
 
 ### 3. Hyperion XDP L7 DNS DPI
-The legacy standalone XDP binary was fully absorbed into the `telos_daemon`. The Daemon dynamically monitors the host's networking namespace for active CNI interfaces (`veth*`, `flannel*`) and attaches the `XDP_DROP` program on the fly during pod churn. To parse variable-length DNS QNAME payloads at wire-speed without crashing the eBPF Verifier, we bypassed the `E2BIG` state explosion limits using strict $O(N)$ linear unrolled loops and bitwise masking (`offset = i & 0xFF`), mathematically guaranteeing safe Ring-0 bounds execution.
+The legacy standalone XDP binary was fully absorbed into the `telos_daemon`. The Daemon dynamically monitors the host's networking namespace for active CNI interfaces (`veth*`, `flannel*`) and attaches the `XDP_DROP` program on the fly during pod churn. To parse variable-length DNS QNAME payloads at wire-speed without crashing the eBPF Verifier, we bypassed the `E2BIG` state explosion limits using strict $O(N)$ linear unrolled loops and bitwise masking (`offset = i & 0xFF`), maintaining verifier-safe bounded parsing behavior.
 
 ### 4. Cross-Process IPC Taint Tracking
 Advanced adversarial payloads leverage Inter-Process Communication (IPC) to pass execution to benign, high-privilege sidecars. Sentinel counters this using cluster-wide infection tracking across UNIX Domain Sockets:
