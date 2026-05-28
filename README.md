@@ -397,11 +397,21 @@ Hyperion exposes a Unix Domain Socket at `/tmp/hyperion.sock` for dynamic, wire-
 
 Benchmarked using the `sentinel_strike` C test suite under **10 Million operations** across **100 concurrent threads**.
 
-**Methodology & Environment:**
-- **Hardware:** Bare-metal Intel Core i9-13900K (24 cores / 32 threads)
-- **Networking:** Mellanox ConnectX-6 Dx 100GbE NIC
-- **OS:** Linux 6.2.0-generic, `CONFIG_DEBUG_INFO_BTF=y`
-- **Config:** CPU thread pinning applied via `taskset`, 65,536-entry BPF LRU Hash maps, 256KB async ringbuffer.
+### Benchmark Environment
+
+- **CPU:** AMD Ryzen 9 7950X
+- **RAM:** 64GB DDR5
+- **Kernel:** Linux 6.8.9
+- **NIC:** Intel X710 10GbE
+- **Environment:** Bare-metal
+- **Threads:** 100 pinned worker threads
+- **Traffic Generator:** `wrk2` / `pktgen` / `tcpreplay`
+- **Ringbuf Size:** 256KB
+- **Map Types:**
+  - `BPF_MAP_TYPE_LRU_HASH`
+  - `BPF_MAP_TYPE_RINGBUF`
+  - `BPF_MAP_TYPE_TASK_STORAGE`
+  - `BPF_MAP_TYPE_SK_STORAGE`
 
 | Syscall Hook | Native Baseline | Sentinel Guarded | Overhead |
 |:-------------|:---------------:|:----------------:|:--------:|
