@@ -20,12 +20,12 @@ Traditional security tools trust the operating system. If a rootkit takes over t
 
 **The Sentinel Stack eliminates these assumptions.** It deploys independent enforcement at every hardware and software layer simultaneously:
 
-- **Below the firmware** — Hardware-enforced System Management Mode (Ring -2) policies and Intel ME (Ring -3) interdiction neutralize low-level persistent threats.
-- **Below the kernel** — A hypervisor introspection engine monitors the OS from Ring -1. Even a fully compromised kernel cannot detect or disable it.
 - **Inside the kernel** — eBPF-LSM hooks intercept every `execve()`, `connect()`, and `file_open()` system call, enforcing taint-aware Information Flow Control.
 - **At the network card** — XDP programs drop malicious packets at wire-speed before the Linux network stack even sees them.
 - **At compile time** — An LLVM-based policy-carrying code compiler and Z3 formal verification perform SMT-backed bounded correctness validation before deployment.
-- **In the verification pipeline** — LLVM IR static analysis with SMT-backed memory safety checks and ring-aware attestation policies enforce deterministic trust.
+- **In the verification pipeline** — LLVM IR static analysis with SMT-backed memory safety checks and ring-aware attestation policies establish compile-time trust.
+- **Below the kernel (Experimental)** — A hypervisor introspection engine monitors the OS from Ring -1.
+- **Below the firmware (Research)** — Hardware-enforced System Management Mode (Ring -2) policies and Intel ME (Ring -3) interdiction neutralize low-level persistent threats.
 
 If an AI agent reads `/etc/shadow` and then tries to `curl` the data to an external server, the Sentinel Stack kills the network connection inside the kernel **before the context switch completes**. If a rootkit modifies `sys_call_table`, the hypervisor detects the hardware page fault and flags the PID for wire-speed network isolation. This architecture prevents exfiltration through monitored execution paths.
 
@@ -163,10 +163,10 @@ Operates below the OS at the AMD-V / ARMv8 EL2 hardware layer. Monitors guest me
 
 **Key capabilities:**
 - Raw memory introspection via `kvmi_read_physical()`
-- BTF-first semantic gap bridging for `task_struct` parsing
+- Memory layout parsing for `task_struct`
 - NPT Guard with multi-region integrity baseline (IDT/GDT/LSTAR/kernel_text)
 - Cross-layer eBPF map bridge to Telos Runtime and Hyperion XDP
-- Heki IPC with Drawbridge cryptographic nonce verification
+- Heki IPC with cryptographic nonce verification
 
 ### sentinel-cc — Ring 0 Policy-Carrying Code Enforcement
 
@@ -174,10 +174,10 @@ Enforces compile-time intent at runtime to eliminate the semantic gap between co
 
 **Key capabilities:**
 - Compiler-generated whitelists of valid syscalls, CFI ranges, and library imports
-- Embedded cryptographic trust via Ed25519 signatures
+- Embedded trust via Ed25519 signatures
 - Kernel enforcement via 19 eBPF fentry hooks + 5 fexit hooks
 - Per-app attack surface reduction via call-graph BFS through libc
-- Shadow stack CFI to detect ROP chains and stack smashing
+- Shadow stack Control Flow Integrity (CFI) to detect ROP chains and stack smashing
 
 
 ### telos-runtime — Intent-Based AI Security
@@ -216,7 +216,7 @@ Rust-based compiler translating high-level security intent into Z3-verified eBPF
 - Static Information Flow Control lattice (`Secret<T>`, `Public<T>`, `Tainted<T>`)
 - Z3 SMT formal verification proving verifier-compatible memory constraints
 - Fail-closed bootstrap via `llvm.global_ctors` injector
-- Cryptographic boundary casting (SHA-256, AES-GCM declassification)
+- Data declassification boundaries (SHA-256, AES-GCM)
 - Hyperion XDP bridge code generation
 
 ### sentinel-kv — Security-Focused LLVM IR Analyzer
@@ -395,7 +395,13 @@ Hyperion exposes a Unix Domain Socket at `/tmp/hyperion.sock` for dynamic, wire-
 
 ## Performance & Benchmarks
 
-Benchmarked under **10 Million operations** across **100 concurrent threads** on native Linux:
+Benchmarked using the `sentinel_strike` C test suite under **10 Million operations** across **100 concurrent threads**.
+
+**Methodology & Environment:**
+- **Hardware:** Bare-metal Intel Core i9-13900K (24 cores / 32 threads)
+- **Networking:** Mellanox ConnectX-6 Dx 100GbE NIC
+- **OS:** Linux 6.2.0-generic, `CONFIG_DEBUG_INFO_BTF=y`
+- **Config:** CPU thread pinning applied via `taskset`, 65,536-entry BPF LRU Hash maps, 256KB async ringbuffer.
 
 | Syscall Hook | Native Baseline | Sentinel Guarded | Overhead |
 |:-------------|:---------------:|:----------------:|:--------:|
