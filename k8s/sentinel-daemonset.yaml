@@ -1,0 +1,98 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sentinel-sa
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: sentinel-cr
+rules:
+- apiGroups: [""]
+  resources: ["pods", "namespaces"]
+  verbs: ["get", "watch", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: sentinel-crb
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: sentinel-cr
+subjects:
+- kind: ServiceAccount
+  name: sentinel-sa
+  namespace: kube-system
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: sentinel-ds
+  namespace: kube-system
+  labels:
+    app: sentinel
+spec:
+  selector:
+    matchLabels:
+      app: sentinel
+  template:
+    metadata:
+      labels:
+        app: sentinel
+    spec:
+      serviceAccountName: sentinel-sa
+      hostNetwork: true
+      hostPID: true
+      tolerations:
+      - operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: telos-daemon
+        image: docker.io/library/sentinel-daemon:latest
+        imagePullPolicy: Never
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: bpf
+          mountPath: /sys/fs/bpf
+          mountPropagation: Bidirectional
+        - name: security
+          mountPath: /sys/kernel/security
+        - name: cgroup
+          mountPath: /sys/fs/cgroup
+        - name: var-run
+          mountPath: /var/run
+        - name: var-log
+          mountPath: /var/log/sentinel
+      - name: telos-cortex
+        image: docker.io/library/sentinel-cortex:latest
+        imagePullPolicy: Never
+        env:
+        - name: AUTH_TOKEN
+          value: "dev_token_123"
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: var-run
+          mountPath: /var/run
+      volumes:
+      - name: bpf
+        hostPath:
+          path: /sys/fs/bpf
+          type: DirectoryOrCreate
+      - name: security
+        hostPath:
+          path: /sys/kernel/security
+          type: Directory
+      - name: cgroup
+        hostPath:
+          path: /sys/fs/cgroup
+          type: Directory
+      - name: var-run
+        emptyDir: {}
+      - name: var-log
+        hostPath:
+          path: /var/log/sentinel
+          type: DirectoryOrCreate

@@ -91,6 +91,25 @@ graph TD
     class XDP,NIC edgeSpace
 ```
 
+## Sentinel Distributed Kubernetes Pivot
+
+Sentinel is deployed as a **Kubernetes DaemonSet**, leveraging a **multi-container sidecar pattern** to ensure zero-trust separation of concerns while maintaining deep systems integration via shared volumes and local UNIX sockets.
+
+### 1. K8s Context Mapping
+The Go daemon (`telos_daemon`) natively embeds `k8s.io/client-go`. We implemented an informer to stream Pod metadata from the API server. By parsing `/sys/fs/cgroup/kubepods.slice/.../cri-containerd-<ID>.scope`, the daemon securely maps individual eBPF inode numbers strictly to Kubernetes Pod namespaces, enabling high-fidelity SIEM logging and context-aware dropping.
+
+### 2. Sidecar Containerization
+- **`telos-daemon`:** Executes as a privileged `hostPID` and `hostNetwork` sidecar. It holds the root capability to pin eBPF maps to `/sys/fs/bpf` and mount the `hostPath` audit logs.
+- **`telos-cortex`:** Runs as an isolated Python 3.10 slim sidecar that connects to the Daemon via the `/var/run/telos.sock` shared `emptyDir` volume for out-of-band Domain Classification.
+
+### 3. Hyperion XDP L7 DNS DPI
+The legacy standalone XDP binary was fully absorbed into the `telos_daemon`. The Daemon dynamically monitors the host's networking namespace for active CNI interfaces (`veth*`, `flannel*`) and attaches the `XDP_DROP` program on the fly during pod churn. To parse variable-length DNS QNAME payloads at wire-speed without crashing the eBPF Verifier, we bypassed the `E2BIG` state explosion limits using strict $O(N)$ linear unrolled loops and bitwise masking (`offset = i & 0xFF`), mathematically guaranteeing safe Ring-0 bounds execution.
+
+### 4. Cross-Process IPC Taint Tracking
+Advanced adversarial payloads leverage Inter-Process Communication (IPC) to pass execution to benign, high-privilege sidecars. Sentinel counters this using cluster-wide infection tracking across UNIX Domain Sockets:
+- **BPF Local Storage (`SK_STORAGE` & `TASK_STORAGE`):** Mathematically eliminates kernel memory leaks and lock contention by binding the taint flags directly to the lifecycle of the kernel's socket and task structs.
+- **BTF-Native Inheritance (`lsm/socket_sock_rcv_skb`):** When a clean server reads from a tainted socket, the inheritance hook securely passes the taint to the receiving process, extracting the newly infected Kubernetes `cgroup_id` dynamically to inform the Python Cortex engine.
+
 ---
 
 ## Architectural Interoperability Matrix
@@ -151,6 +170,8 @@ Enforces compile-time intent at runtime to eliminate the semantic gap between co
 Enforces AI agent behavior through Natural Language Intent Declarations, eBPF-LSM syscall gates, and real-time Information Flow Control. Implements the Dual-Gate Architecture (Execution Gate + Network Gate) with cross-vector taint tracking. If a process touches sensitive files, all network access is permanently revoked (Network Slam).
 
 **Key capabilities:**
+- Kubernetes Native: Deploys as a zero-trust DaemonSet sidecar with `client-go` informer-driven cgroup-to-pod mapping.
+- Deep Kernel IPC Taint Tracking: Propagates lateral movement infection trees across UNIX Domain Sockets using mathematically safe `BPF_MAP_TYPE_SK_STORAGE` and `TASK_STORAGE`.
 - Dual-Gate kernel enforcement (`lsm/bprm_check_security` + `lsm/socket_connect`)
 - Dynamic IFC with taint elevation and irreversible Network Slam
 - Domain Intelligence Engine with 5-layer classification pipeline (L0-L4)
@@ -160,10 +181,12 @@ Enforces AI agent behavior through Natural Language Intent Declarations, eBPF-LS
 
 ### hyperion-xdp — Wire-Speed Network Defense
 
-XDP programs attached directly to the NIC driver drop malicious packets before `sk_buff` allocation. Receives malicious IPs from Telos Domain Intelligence via HTTP RPC. Provides structured M5 telemetry with 40-byte aligned events via `BPF_MAP_TYPE_RINGBUF`.
+XDP programs attached directly to the NIC driver drop malicious packets before `sk_buff` allocation. Fully integrated into the `telos_daemon` for dynamic attachment to CNI virtual interfaces (`veth*`, `flannel*`) during Kubernetes Pod churn. Provides structured M5 telemetry with 40-byte aligned events via `BPF_MAP_TYPE_RINGBUF`.
 
 **Key capabilities:**
 - Wire-speed `XDP_DROP` at the NIC driver receive path
+- Layer 7 DNS DPI: Verifier-safe $O(N)$ linear byte-scanning for QNAME malicious domain exfiltration.
+- Dynamic interface discovery: Automatically binds to active K3s container interfaces upon pod creation.
 - Deep payload inspection with signature matching
 - Stateful per-flow tracking via `BPF_MAP_TYPE_LRU_HASH`
 - Telos RPC bridge on `:9095/block`

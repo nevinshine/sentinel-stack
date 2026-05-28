@@ -1,0 +1,16 @@
+all:
+  children:
+    arm64_hypervisor:
+      hosts:
+        # We commented out raspberrypi in Vagrantfile for this Ring 0 test
+        # raspberrypi:
+        #   ansible_host: 192.168.121.20
+        #   ansible_user: vagrant
+        #   ansible_ssh_private_key_file: ".vagrant/machines/raspberrypi/libvirt/private_key"
+    x86_network_host:
+      hosts:
+        intelhost:
+          ansible_host: 192.168.121.10
+          ansible_user: vagrant
+          ansible_ssh_private_key_file: ".vagrant/machines/intelhost/libvirt/private_key"
+          ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'

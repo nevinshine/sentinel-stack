@@ -1,0 +1,22 @@
+[Unit]
+Description=Sentinel Runtime Stack (Ring -1 / Ring 0)
+After=network.target sys-fs-bpf.mount
+
+[Service]
+Type=notify
+# Arm the Ring -3 Interdiction hook before starting the control plane
+{% if 'x86_network_host' in group_names %}
+# ExecStartPre=-/sbin/modprobe mei
+# ExecStartPre=/sbin/insmod /etc/sentinel/modules/sentinel_mei_hook.ko
+{% endif %}
+ExecStart=/usr/local/bin/telos_daemon
+# Disarm cleanly on shutdown
+{% if 'x86_network_host' in group_names %}
+# ExecStopPost=-/sbin/rmmod sentinel_mei_hook
+{% endif %}
+WatchdogSec=10s
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

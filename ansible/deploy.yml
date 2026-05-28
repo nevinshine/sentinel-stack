@@ -1,0 +1,6 @@
+---
+- name: Deploy Sentinel Stack
+  hosts: all
+  become: yes
+  roles:
+    - sentinel_node

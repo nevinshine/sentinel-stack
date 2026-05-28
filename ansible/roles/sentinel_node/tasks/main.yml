@@ -1,0 +1,92 @@
+---
+
+
+- name: Ensure /sys/fs/bpf is mounted
+  mount:
+    path: /sys/fs/bpf
+    src: bpffs
+    fstype: bpf
+    state: mounted
+
+- name: Create Sentinel logging directory
+  file:
+    path: /var/log/sentinel
+    state: directory
+    mode: '0750'
+
+- name: Create Sentinel modules directory
+  file:
+    path: /etc/sentinel/modules
+    state: directory
+    mode: '0755'
+
+- name: Create Sentinel temp payload directory
+  file:
+    path: /tmp/sentinel_payload
+    state: directory
+
+- name: Transfer Sentinel Release tarball
+  unarchive:
+    src: "{{ playbook_dir }}/../sentinel-release.tar.gz"
+    dest: /tmp/sentinel_payload/
+    remote_src: no
+
+- name: Copy x86_64 binaries
+  copy:
+    src: "/tmp/sentinel_payload/x86_64/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    mode: '0755'
+    remote_src: yes
+  loop:
+    - telos_daemon
+    - hyperion_ctrl
+    - sentinelctl
+  when: "'x86_network_host' in group_names"
+
+- name: Copy arm64 binaries
+  copy:
+    src: "/tmp/sentinel_payload/arm64/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    mode: '0755'
+    remote_src: yes
+  loop:
+    - telos_daemon
+    - hyperion_ctrl
+    - sentinelctl
+  when: "'arm64_hypervisor' in group_names"
+
+
+
+- name: Compile hypervisor components (arm64 only)
+  shell: |
+    make
+  args:
+    chdir: /tmp/sentinel_payload/src/vmi
+  when: "'arm64_hypervisor' in group_names"
+  ignore_errors: yes
+
+- name: Copy Red Team binaries
+  copy:
+    src: "/tmp/sentinel_payload/red_team/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    mode: '0755'
+    remote_src: yes
+  loop:
+    - sentinel_strike
+    - sentinel_strike_ring0
+
+- name: Template sentinel@.service systemd unit
+  template:
+    src: sentinel@.service.j2
+    dest: /etc/systemd/system/sentinel@.service
+    mode: '0644'
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: yes
+
+- name: Enable and start sentinel@core.service
+  systemd:
+    name: sentinel@core
+    enabled: yes
+    state: started

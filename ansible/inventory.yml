@@ -1,0 +1,12 @@
+all:
+  children:
+    arm64_hypervisor:
+      hosts:
+        raspberrypi:
+          ansible_host: 192.168.1.100 # Placeholder
+          ansible_user: root
+    x86_network_host:
+      hosts:
+        intelhost:
+          ansible_host: 192.168.1.101 # Placeholder
+          ansible_user: root
