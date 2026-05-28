@@ -54,7 +54,7 @@ jobs:
         run: cargo build --release
         
       - name: Generate Sigstore Provenance
-        uses: sigstore/gh-action-sigstore-python@v2.1.1
+        uses: sigstore/gh-action-sigstore-python@v3.0.0
         with:
           inputs: telos-lang/telosc/target/release/telosc
 
@@ -103,7 +103,7 @@ jobs:
         run: go build -o bin/hyperion_ctrl ./cmd/hyperion
 
       - name: Generate Sigstore Provenance
-        uses: sigstore/gh-action-sigstore-python@v2.1.1
+        uses: sigstore/gh-action-sigstore-python@v3.0.0
         with:
           inputs: hyperion-xdp/bin/hyperion_ctrl
 
