@@ -399,12 +399,12 @@ Benchmarked using the `sentinel_strike` C test suite under **10 Million operatio
 
 ### Benchmark Environment
 
-- **CPU:** AMD Ryzen 9 7950X
-- **RAM:** 64GB DDR5
-- **Kernel:** Linux 6.8.9
-- **NIC:** Intel X710 10GbE
-- **Environment:** Bare-metal
-- **Threads:** 100 pinned worker threads
+- **CPU:** AMD Ryzen 7 PRO 5850U (8 Cores / 16 Threads)
+- **RAM:** 32GB
+- **Kernel:** Linux 7.0.9-105.fc43.x86_64
+- **NIC:** virtio-net / CNI Virtual Interfaces (veth)
+- **Environment:** KVM Virtualized Environment (Fedora/K3s)
+- **Threads:** 16 pinned worker threads
 - **Traffic Generator:** `wrk2` / `pktgen` / `tcpreplay`
 - **Ringbuf Size:** 256KB
 - **Map Types:**
