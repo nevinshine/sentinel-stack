@@ -53,7 +53,7 @@
  * EL2 EXCEPTION VECTOR TABLE
  * Must be 2KB aligned (2^11 = 2048)
  * ==================================================================== */
-.section .vectors
+.section .vectors, "ax"
 .align 11
 el2_vector_table:
 

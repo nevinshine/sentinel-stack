@@ -1,5 +1,7 @@
 #include "hypervisor.h"
 
+extern void dummy_guest_entry(void);
+
 /* Simple UART driver for bare-metal printing */
 #define UART0_BASE 0x09000000
 static volatile uint32_t * const UART0_DR = (uint32_t *)UART0_BASE;
@@ -25,6 +27,12 @@ void uart_puts(const char *str) {
 #define DFSC_S2_FAULT_L2     0x06
 #define DFSC_S2_FAULT_L3     0x07
 
+/* Data Fault Status Codes for Stage-2 Permission Faults */
+#define DFSC_S2_PERM_L0      0x0C
+#define DFSC_S2_PERM_L1      0x0D
+#define DFSC_S2_PERM_L2      0x0E
+#define DFSC_S2_PERM_L3      0x0F
+
 /**
  * handle_sync_lower - C hook called from exceptions.S
  * @esr: Value of ESR_EL2 at the time of the exception
@@ -37,8 +45,9 @@ void handle_sync_lower(uint64_t esr, uint64_t far) {
         uint32_t iss = esr & ESR_ISS_MASK;
         uint32_t dfsc = iss & ESR_ISS_DFSC_MASK;
         
-        /* Check if the fault is explicitly a Stage-2 Translation Fault */
-        if (dfsc >= DFSC_S2_FAULT_L0 && dfsc <= DFSC_S2_FAULT_L3) {
+        /* Check if the fault is explicitly a Stage-2 Translation or Permission Fault */
+        if ((dfsc >= DFSC_S2_FAULT_L0 && dfsc <= DFSC_S2_FAULT_L3) ||
+            (dfsc >= DFSC_S2_PERM_L0 && dfsc <= DFSC_S2_PERM_L3)) {
             int is_write = (iss & ESR_ISS_WnR) ? 1 : 0;
             // int fault_level = dfsc - DFSC_S2_FAULT_L0; // Unused for now
             

@@ -41,11 +41,11 @@ jump_to_el1:
     msr spsr_el2, x0
 
     /* Set ELR_EL2 to the guest entry point */
-    ldr x0, =0x40080000
+    ldr x0, =dummy_guest_entry
     msr elr_el2, x0
 
     /* * ERET evaluates SPSR_EL2 and ELR_EL2, drops privileges to EL1,
-     * and jumps to 0x40080000.
+     * and jumps to dummy_guest_entry.
      */
     eret
 
@@ -65,7 +65,8 @@ configure_stage2_mmu:
     msr     vttbr_el2, x0
 
     /* Step 3: Populate VTCR_EL2 with our 40-bit, 4KB granule configuration mask */
-    ldr     x0, =0x80023518
+    /* 0x80023058: SL0=1 (Level 1), T0SZ=24, Non-cacheable (IRGN0/ORGN0=0) */
+    ldr     x0, =0x80023058
     msr     vtcr_el2, x0
 
     /* Step 3.5: Enable Stage 2 Translation in HCR_EL2 */

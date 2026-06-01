@@ -13,7 +13,8 @@ BIN_DIR = bin
 OBJS = $(OBJ_DIR)/boot.o \
        $(OBJ_DIR)/exceptions.o \
        $(OBJ_DIR)/hypervisor.o \
-       $(OBJ_DIR)/mmu.o
+       $(OBJ_DIR)/mmu.o \
+       $(OBJ_DIR)/dummy_guest.o
 
 TARGET_ELF = $(BIN_DIR)/sentinel_hypervisor.elf
 TARGET_BIN = $(BIN_DIR)/sentinel_hypervisor.bin

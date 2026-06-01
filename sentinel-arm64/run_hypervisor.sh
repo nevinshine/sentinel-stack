@@ -10,6 +10,6 @@ qemu-system-aarch64 \
     -smp 1 \
     -m 1024 \
     -nographic \
-    -bios bin/sentinel_hypervisor.bin \
+    -kernel bin/sentinel_hypervisor.elf \
     -d int,guest_errors \
     -D qemu_execution.log

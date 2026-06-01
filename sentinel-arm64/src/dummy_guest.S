@@ -1,21 +1,23 @@
-.global guest_start
-.section .guest_text, "ax"
+.section .text
+.global dummy_guest_entry
 
-guest_start:
-    /* Trigger the Drawbridge */
-    ldr x0, =0x48454B49       /* HEKI magic word */
-    ldr x1, =0x40200000       /* Locked Drawbridge Address */
-    str w0, [x1]              /* Attempt write -> triggers Stage 2 Data Abort */
+dummy_guest_entry:
+    /* Step 1: Establish a known baseline by writing to an unprotected address */
+    /* Assuming 0x40100000 is mapped as Read/Write in Stage-2 */
+    ldr     x0, =0x40100000
+    mov     x1, #0xAA
+    str     x1, [x0]
 
-    /* QEMU UART Address */
-    ldr x1, =0x09000000
-    /* ASCII 'G' for Guest */
-    mov w2, #71 
-print_loop:
-    str w2, [x1]
-    /* Arbitrary delay */
-    ldr x3, =0x1000000 
-delay:
-    subs x3, x3, #1
-    bne delay
-    b print_loop
+    /* Step 2: Target the Drawbridge-locked memory region */
+    /* This address must match the physical block configured as Read-Only (s2ap = 1) */
+    ldr     x2, =0x40200000
+    
+    /* Step 3: Execute the violating write transaction */
+    /* The hardware MMU will combine EL1 permissions with Stage-2 Read-Only */
+    /* This exact instruction triggers the Stage-2 Data Abort trap to EL2 */
+    mov     x3, #0xFF
+    str     x3, [x2]
+
+    /* Step 4: Fallback safeguard loop */
+    /* If execution reaches here, the Stage-2 memory protection failed to trap */
+1:  b       1b
