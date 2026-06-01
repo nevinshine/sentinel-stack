@@ -97,6 +97,7 @@ sync_lower_el64:
     /* 2. Read the hardware syndrome and fault address */
     mrs x0, esr_el2    /* Arg 0: Exception Syndrome Register */
     mrs x1, far_el2    /* Arg 1: Fault Address Register */
+    mov x2, sp         /* Arg 2: Pointer to guest context (registers) */
     
     /* 3. Branch into the C surgical decoder */
     bl handle_sync_lower

@@ -23,6 +23,33 @@ typedef union {
     } __attribute__((packed)) fields;
 } stage2_desc_t;
 
+/* VMI: Stage-1 Software Page Table Walker Macros (4KB Granule, 48-bit VA) */
+#define PGD_SHIFT       39
+#define PUD_SHIFT       30
+#define PMD_SHIFT       21
+#define PTE_SHIFT       12
+#define PT_INDEX_MASK   0x1FF
+
+/* VMI: Hardware Stage-1 Translation Table Descriptor (EL1) */
+typedef union {
+    uint64_t val;
+    struct {
+        uint64_t type    : 2;  // [1:0] 01=Block, 11=Table/Page
+        uint64_t indx    : 3;  // [4:2] AttrIndx
+        uint64_t ns      : 1;  // [5]   Non-Secure
+        uint64_t ap      : 2;  // [7:6] Data Access Permissions
+        uint64_t sh      : 2;  // [9:8] Shareability
+        uint64_t af      : 1;  // [10]  Access Flag
+        uint64_t ng      : 1;  // [11]  Not Global
+        uint64_t oa      : 36; // [47:12] Output Address
+        uint64_t res0    : 4;  // [51:48] Reserved
+        uint64_t contig  : 1;  // [52]  Contiguous
+        uint64_t pxn     : 1;  // [53]  Privileged Execute Never
+        uint64_t uxn     : 1;  // [54]  Unprivileged Execute Never
+        uint64_t ignored : 9;  // [63:55] Ignored/PBHA
+    } __attribute__((packed)) fields;
+} stage1_desc_t;
+
 /* External functions */
 extern void uart_puts(const char *str);
 extern void mmu_init_stage2(void);
