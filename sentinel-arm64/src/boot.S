@@ -31,71 +31,6 @@ hang:
     b hang
 
 
-/* ====================================================================
- * EL2 EXCEPTION VECTOR TABLE
- * Must be 2KB aligned (2^11 = 2048)
- * ==================================================================== */
-.align 11
-.global el2_vector_table
-el2_vector_table:
-
-    /* Group 1: Exceptions from Current EL (SP_EL0) - Unused */
-    .align 7; b default_handler
-    .align 7; b default_handler
-    .align 7; b default_handler
-    .align 7; b default_handler
-
-    /* Group 2: Exceptions from Current EL (SP_ELx) - Hypervisor bugs trap here! */
-    .align 7; b sync_current_el
-    .align 7; b default_handler
-    .align 7; b default_handler
-    .align 7; b default_handler
-
-    /* Group 3: Exceptions from Lower EL (AArch64) - Our Drawbridge traps here! */
-    .align 7; b sync_lower_el64
-    .align 7; b default_handler
-    .align 7; b default_handler
-    .align 7; b default_handler
-
-    /* Group 4: Exceptions from Lower EL (AArch32) - Unused */
-    .align 7; b default_handler
-    .align 7; b default_handler
-    .align 7; b default_handler
-    .align 7; b default_handler
-
-
-/* ====================================================================
- * EXCEPTION HANDLERS
- * ==================================================================== */
-sync_current_el:
-    /* If we crash inside EL2, we land here */
-    b .
-
-.extern handle_sync_lower
-sync_lower_el64:
-    /* Allocate 64 bytes on stack to save x0-x7 */
-    sub sp, sp, #64
-    stp x0, x1, [sp, #0]
-    stp x2, x3, [sp, #16]
-    stp x4, x5, [sp, #32]
-    stp x6, x7, [sp, #48]
-
-    /* Pass stack pointer (pointer to regs array) as arg0 to C */
-    mov x0, sp
-    bl handle_sync_lower
-
-    /* Restore registers */
-    ldp x0, x1, [sp, #0]
-    ldp x2, x3, [sp, #16]
-    ldp x4, x5, [sp, #32]
-    ldp x6, x7, [sp, #48]
-    add sp, sp, #64
-    
-    eret
-
-default_handler:
-    b .
-
 .global jump_to_el1
 jump_to_el1:
     /* * SPSR_EL2 configuration:
@@ -113,3 +48,37 @@ jump_to_el1:
      * and jumps to 0x40080000.
      */
     eret
+
+/* ====================================================================
+ * STAGE-2 TRANSLATION CONTROL
+ * ==================================================================== */
+.global configure_stage2_mmu
+configure_stage2_mmu:
+    /* Step 1: Load the base address of your C-allocated Level-1 table */
+    ldr     x0, =stage2_l1_table
+    
+    /* Step 2: Bind the table pointer to the Virtualization Translation Table Base Register */
+    /* Note: VMID [55:48] can be set to 1 for our primary isolated guest cluster */
+    mov     x1, #1
+    lsl     x1, x1, #48
+    orr     x0, x0, x1
+    msr     vttbr_el2, x0
+
+    /* Step 3: Populate VTCR_EL2 with our 40-bit, 4KB granule configuration mask */
+    ldr     x0, =0x80023518
+    msr     vtcr_el2, x0
+
+    /* Step 3.5: Enable Stage 2 Translation in HCR_EL2 */
+    mrs     x0, hcr_el2
+    orr     x0, x0, #1       /* VM = 1 (Enable Stage 2) */
+    mov     x1, #1
+    lsl     x1, x1, #31      /* RW = 1 (EL1 is 64-bit) */
+    orr     x0, x0, x1
+    msr     hcr_el2, x0
+
+    /* Step 4: Ensure all register writes are fully completed before proceeding */
+    dsb     sy
+    isb
+
+    ret
+
