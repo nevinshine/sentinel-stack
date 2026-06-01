@@ -1,7 +1,7 @@
 .global _start
 .extern hypervisor_main
 
-.section .text
+.section .text.boot
 _start:
     /* Read CurrentEL */
     mrs x0, CurrentEL
@@ -15,7 +15,7 @@ not_el2:
 
 el2_entry:
     /* 1. Set up the stack pointer */
-    ldr x1, =_stack_top
+    ldr x1, =__el2_stack_top
     mov sp, x1
 
     /* 2. Load the Vector Table Address into VBAR_EL2 */

@@ -2,28 +2,38 @@ ENTRY(_start)
 
 SECTIONS
 {
-    /* QEMU virt machine RAM starts here */
+    /* QEMU ARM64 'virt' machine physical RAM starts here */
     . = 0x40000000;
 
     .text : {
-        *(.text)
+        *(.text.boot)  /* Ensure boot.S entry code runs first */
+        *(.text .text.*)
+    }
+
+    . = ALIGN(2048);
+    .vectors : {
+        *(.vectors)    /* Vector table entry point */
+    }
+
+    .rodata : {
+        *(.rodata .rodata.*)
     }
 
     .data : {
-        *(.data)
+        *(.data .data.*)
     }
 
     .bss : {
-        *(.bss)
+        __bss_start = .;
+        *(.bss .bss.*)
+        *(COMMON)
+        __bss_end = .;
     }
 
-    /* Allocate a 4KB stack */
-    . = ALIGN(4096);
-    . += 4096;
-    _stack_top = .;
+    /* Allocate an 8KB stack space for EL2 execution */
+    . = ALIGN(16);
+    . = . + 0x2000;
+    __el2_stack_top = .;
 
-    . = 0x40080000;
-    .guest_text : {
-        *(.guest_text)
-    }
+    _end = .;
 }
