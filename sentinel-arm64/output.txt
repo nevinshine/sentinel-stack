@@ -1,0 +1,12 @@
+[Sentinel-VMI] Booting Type-1 Hypervisor at EL2...
+[Sentinel-VMI] Initializing Stage 2 MMU...
+[Sentinel-VMI] Stage 2 MMU Tables Populated in Memory.
+[Sentinel-VMI] Initialization complete. Dropping to EL1 Guest...
+
+[Sentinel-VMI] Intercepted HVC. Introspecting Guest VA: 0x0000123456789000
+[Sentinel-VMI] TTBR Base PA: 0x0000000040002000
+[Sentinel-VMI] PGD Index: 0x0000000000000024 -> Entry: 0x0000000040004003
+[Sentinel-VMI] PUD Index: 0x00000000000000D1 -> Entry: 0x0000000040005003
+[Sentinel-VMI] PMD Index: 0x00000000000000B3 -> Entry: 0x0000000040006003
+[Sentinel-VMI] PTE Index: 0x0000000000000189 -> Entry: 0x0000000040200703
+[Sentinel-VMI] *** VMI SUCCESS: VA 0x0000123456789000 maps to PA 0x0000000040200000 ***

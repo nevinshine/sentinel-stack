@@ -29,12 +29,18 @@ void mmu_init_stage2(void) {
         desc.fields.memattr = 0xF; // Normal Memory
         desc.fields.ipa = phys_base >> 12;
 
-        if (phys_base == 0x40200000) {
-            // THE DRAWBRIDGE: Lock this 2MB block to Read-Only
-            desc.fields.s2ap = 1; // 0b01 = Read Only from EL1
+        if (phys_base == 0x40000000) {
+            // Guest Text: Read-Only, Executable (xn=0)
+            desc.fields.s2ap = 1; // 0b01 = Read-Only
+            desc.fields.xn = 0;   // 0b0 = Executable
+        } else if (phys_base == 0x40200000) {
+            // THE DRAWBRIDGE: Lock this 2MB block to Read-Only, Execute-Never
+            desc.fields.s2ap = 1; // 0b01 = Read-Only
+            desc.fields.xn = 1;   // 0b1 = Execute-Never
         } else {
-            // Standard mapping: Read/Write
-            desc.fields.s2ap = 3; // 0b11 = Read/Write from EL1
+            // Standard Data mapping: Read/Write, Execute-Never
+            desc.fields.s2ap = 3; // 0b11 = Read/Write
+            desc.fields.xn = 1;   // 0b1 = Execute-Never
         }
         
         stage2_l2_table[i] = desc;

@@ -71,5 +71,13 @@ dummy_guest_entry:
     ldr x0, =0x123456789000
     hvc #0
 
-    /* 6. Success loop (hypervisor returns here after introspection) */
+    /* 6. Intentionally execute branch to Drawbridge region (0x40200000) */
+    /* This memory block is marked Execute-Never (XN) at Stage 2. */
+    /* The moment the branch forces an instruction fetch, it will trap straight to EL2. */
+    ldr x1, =0x40200000
+    br x1
+
+    /* Should never reach this point */
+    nop
+    
 1:  b 1b

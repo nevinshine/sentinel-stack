@@ -28,6 +28,7 @@ void uart_puthex(uint64_t val) {
 #define ESR_EC_MASK          (0x3FUL << 26)
 #define ESR_EC_SHIFT         26
 #define ESR_EC_DATA_ABORT_L  0x24  /* Data Abort from a lower Exception Level */
+#define ESR_EC_INSTR_ABORT_L 0x20  /* Instruction Abort from a lower Exception Level */
 #define ESR_EC_HVC_EL1       0x16  /* HVC instruction execution in EL1 */
 
 #define ESR_ISS_MASK         0x1FFFFFFUL
@@ -79,6 +80,17 @@ void handle_sync_lower(uint64_t esr, uint64_t far, uint64_t *regs) {
             } else {
                 uart_puts("[EL2-SECURITY] STAGE-2 FAULT: Unauthorized Read Blocked.\n");
             }
+        }
+    } else if (ec == ESR_EC_INSTR_ABORT_L) {
+        uart_puts("\n[!!!] SENTINEL MITIGATION TRIGGERED [!!!]\n");
+        uart_puts("CRITICAL: Malicious Instruction Execution Attempt Intercepted at EL2.\n");
+        uart_puts("Violating Guest Virtual Address (FAR_EL2): ");
+        uart_puthex(far);
+        uart_puts("\nException Syndrome Register (ESR_EL2):    ");
+        uart_puthex(esr);
+        uart_puts("\nACTION: Freezing Guest Execution Context Environment.\n");
+        while(1) {
+            __asm__ volatile("wfe");
         }
     } else if (ec == ESR_EC_HVC_EL1) {
         /* VMI: Intercept HVC and perform Software Page Table Walk */
@@ -172,12 +184,6 @@ void handle_sync_lower(uint64_t esr, uint64_t far, uint64_t *regs) {
         uart_puts(" maps to PA ");
         uart_puthex(final_pa);
         uart_puts(" ***\n");
-
-        /* Advance ELR_EL2 to skip the HVC instruction and return */
-        uint64_t elr;
-        __asm__ volatile("mrs %0, elr_el2" : "=r" (elr));
-        elr += 4;
-        __asm__ volatile("msr elr_el2, %0" : : "r" (elr));
     }
 }
 
