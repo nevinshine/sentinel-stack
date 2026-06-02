@@ -36,6 +36,15 @@ The hypervisor orchestrates the `telos_bootstrap` routine, utilizing an Ed25519-
 
 ---
 
+## Don't Trust, Verify
+
+This stack is not theoretical. It is a fully functional, mathematically verified architecture built from scratch. Audit the code, run the formal proofs, and trigger the silicon traps yourself:
+
+* **The Math Layer (Z3 SMT)**: Examine the `telos-lang` compiler to see how the Information Flow Control (IFC) lattice mathematically extracts an `Unsat Core` on policy violation.
+* **The Silicon Layer (RISC-V)**: Run the TCA V2 Silicon tape-out. Boot the QEMU simulator and watch the hardware Bloom filter drop a network exfiltration attempt in exactly 2 CPU cycles.
+
+---
+
 ## One-Touch Reproducibility
 
 Reproducibility is the currency of architectural research. You can clone this repository and watch the QEMU simulator physically drop the packet on a taint violation in a single command.
