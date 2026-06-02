@@ -5,3 +5,16 @@ k3s-airgap/
 .vagrant/
 *.tar.gz
 *.tar
+*.bin
+*.ll
+*.o
+*.out
+a.out
+riscv-tca-sim/
+legacy_v1/sentinel-cc/benchmark_riscv
+legacy_v1/sentinel-cc/exfil_test_riscv
+legacy_v1/sentinel-cc/os_isolation_test_riscv
+legacy_v1/sentinel-cc/os_isolation_test_v2
+legacy_v1/sentinel-cc/ptr_test
+legacy_v1/sentinel-cc/ptr_test_riscv
+legacy_v1/sentinel-cc/uart_test
