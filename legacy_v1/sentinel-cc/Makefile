@@ -349,3 +349,44 @@ benchmark_riscv: ../tca-prototype/benchmark.c ../tca-prototype/boot.S $(SRC_COMP
 	./sign_tool benchmark_riscv priv.pem
 	
 	@echo "[SUCCESS] benchmark_riscv binary ready for TCA hardware."
+
+os_isolation_test_riscv: ../tca-prototype/os_isolation_test.c ../tca-prototype/boot.S $(SRC_COMPILER)/build/SentinelPass.so sign_tool keys
+	@echo "[+] 1. Compiling os_isolation_test.c to RISC-V LLVM IR..."
+	$(CLANG) --target=riscv64-unknown-elf -march=rv64gc -mcmodel=medany -mabi=lp64d -ffreestanding -S -emit-llvm -fPIE -Iinclude ../tca-prototype/os_isolation_test.c -o os_isolation_test_riscv.ll
+
+	@echo "[+] 2. Applying Teleological Lifting via SentinelPass..."
+	opt -load-pass-plugin=$(SRC_COMPILER)/build/SentinelPass.so -passes=sentinel-tca os_isolation_test_riscv.ll -S -o os_isolation_test_riscv_lifted.ll
+
+	@echo "[+] 3. Compiling lifted IR to RISC-V object code..."
+	llc -march=riscv64 -relocation-model=pic -filetype=obj os_isolation_test_riscv_lifted.ll -o os_isolation_test_riscv.o
+
+	@echo "[+] 3b. Assembling boot trampoline..."
+	$(CLANG) --target=riscv64-unknown-elf -march=rv64gc -mcmodel=medany -mabi=lp64d -c ../tca-prototype/boot.S -o benchmark_boot.o
+
+	@echo "[+] 4. Linking object code with custom linker script..."
+	$(CLANG) --target=riscv64-unknown-elf -nostdlib -fuse-ld=lld benchmark_boot.o os_isolation_test_riscv.o -Wl,-T,src/compiler/tca_linker.ld -Wl,--entry=_boot -o os_isolation_test_riscv
+
+	@echo "[+] 5. Signing target binary with Ed25519 Capability Signature..."
+	./sign_tool os_isolation_test_riscv priv.pem
+	@echo "[SUCCESS] os_isolation_test_riscv binary ready for TCA hardware."
+
+exfil_test_riscv: ../tca-prototype/exfil_test.c ../tca-prototype/boot.S $(SRC_COMPILER)/build/SentinelPass.so sign_tool keys
+	@echo "[+] 1. Compiling exfil_test.c to RISC-V LLVM IR..."
+	$(CLANG) --target=riscv64-unknown-elf -march=rv64gc -mcmodel=medany -mabi=lp64d -ffreestanding -S -emit-llvm -fPIE -Iinclude ../tca-prototype/exfil_test.c -o exfil_test_riscv.ll
+	
+	@echo "[+] 2. Applying Teleological Lifting via SentinelPass..."
+	opt -load-pass-plugin=$(SRC_COMPILER)/build/SentinelPass.so -passes=sentinel-tca exfil_test_riscv.ll -S -o exfil_test_riscv_lifted.ll
+	
+	@echo "[+] 3. Compiling lifted IR to RISC-V object code..."
+	llc -march=riscv64 -relocation-model=pic -filetype=obj exfil_test_riscv_lifted.ll -o exfil_test_riscv.o
+	
+	@echo "[+] 3b. Assembling boot trampoline..."
+	$(CLANG) --target=riscv64-unknown-elf -march=rv64gc -mabi=lp64d -c ../tca-prototype/boot.S -o benchmark_boot.o
+	
+	@echo "[+] 4. Linking with TCA capability memory layout..."
+	$(CLANG) --target=riscv64-unknown-elf -nostdlib -fuse-ld=lld benchmark_boot.o exfil_test_riscv.o -Wl,-T,src/compiler/tca_linker.ld -Wl,--entry=_boot -o exfil_test_riscv
+	
+	@echo "[+] 5. Cryptographically signing the PT_SHADOW_PROOF segment..."
+	./sign_tool exfil_test_riscv priv.pem
+	
+	@echo "[SUCCESS] exfil_test_riscv binary ready for TCA hardware."

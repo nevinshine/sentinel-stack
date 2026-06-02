@@ -2,10 +2,10 @@
 	path = sentinel-vmi
 	url = https://github.com/nevinshine/sentinel-vmi.git
 [submodule "telos-runtime"]
-	path = telos-runtime
+	path = legacy_v1/telos-runtime
 	url = https://github.com/nevinshine/telos-runtime.git
 [submodule "hyperion-xdp"]
-	path = hyperion-xdp
+	path = legacy_v1/hyperion-xdp
 	url = https://github.com/nevinshine/hyperion-xdp.git
 [submodule "telos-lang"]
 	path = telos-lang

@@ -96,50 +96,41 @@ int main(void) {
     uart_puts("[TCA] Teleological Capability Benchmark\n");
     uart_puts("========================================\n");
 
-    uart_puts("[DIAG] Phase 1: Testing mcycle CSR...\n");
-    uint64_t test_c = rdcycle();
-    uart_puts("[DIAG] mcycle read OK: ");
-    uart_u64(test_c);
-    uart_puts("\n");
-
     // Use a valid RAM address for the "sensitive" target.
     // 0x87F00000 is near the top of QEMU virt's default 128 MiB RAM.
     // The TCA hardware gate in op_helper.c checks addr >= 0x87000000.
     volatile uint64_t* target = (volatile uint64_t*)0x87F00000;
+    
+    // Dummy target outside of TCA bounds for eBPF test
+    volatile uint64_t* dummy_target = (volatile uint64_t*)0x86000000;
 
     // ----------------------------------------------------------
     // TEST 1: Plain load (baseline measurement)
     // ----------------------------------------------------------
-    uart_puts("[DIAG] Phase 2: Baseline load...\n");
     uint64_t c0 = rdcycle();
     volatile uint64_t dummy_load = *target;
     uint64_t c1 = rdcycle();
     (void)dummy_load;
     uint64_t baseline_load = c1 - c0;
-    uart_puts("[DIAG] Baseline done.\n");
 
     // ----------------------------------------------------------
     // TEST 2: Store WITH TCA intent active (hardware inline gate)
     // ----------------------------------------------------------
-    uart_puts("[DIAG] Phase 3: Setting TCA intent...\n");
     llvm_telos_intent_start("network_send_socket_data");
-    uart_puts("[DIAG] Intent set. Performing TCA store...\n");
 
     uint64_t c2 = rdcycle();
     *target = 0xDEADBEEFCAFEBABEULL;  // TCA gate fires inline
     uint64_t c3 = rdcycle();
     uint64_t tca_store = c3 - c2;
-    uart_puts("[DIAG] TCA store done.\n");
 
     llvm_telos_intent_end();
 
     // ----------------------------------------------------------
     // TEST 3: Store WITH simulated eBPF LSM hook (~150 instr)
     // ----------------------------------------------------------
-    uart_puts("[DIAG] Phase 4: eBPF simulation...\n");
     uint64_t c4 = rdcycle();
     simulate_ebpf_lsm_hook();
-    *target = 0xCAFEBABEDEADBEEFULL;  // actual store after hook
+    *dummy_target = 0xCAFEBABEDEADBEEFULL;  // actual store after hook
     uint64_t c5 = rdcycle();
     uint64_t ebpf_store = c5 - c4;
 
