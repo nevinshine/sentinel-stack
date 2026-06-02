@@ -21,15 +21,15 @@ Traditional cybersecurity models often attempt to correlate high-level program i
 
 Imagine a high-security manufacturing plant. In a traditional system, an inspector (the operating system kernel) stands at every door checking badges (permissions) whenever an employee (a program) tries to move a sensitive component. This slows down the entire factory.
 
-**The Sentinel Stack changes the physics of the factory.** Instead of relying on an inspector at the door, the rules are mathematically proven before the employee even enters the building, and the physical doors themselves are wired to recognize unauthorized components. 
+Instead of relying on a runtime inspector at the door, the rules are mathematically constrained before the program executes, and the simulated hardware datapath is designed to trap unauthorized flows.
 
 When a developer writes code in the Sentinel Stack, they declare their exact intent in natural language:
 > *"I intend to read a secure cryptographic key and hash it."*
 
-1. **The Math Layer:** Before the code is even compiled, a mathematical solver (Z3 SMT) proves that the developer hasn't accidentally written code that leaks the key to the internet. If the math doesn't check out, the program refuses to compile.
-2. **The Hardware Layer:** Once compiled, the program is handed a cryptographic "intent receipt." When the program runs on the physical processor, a custom hardware gate checks the receipt in **exactly two clock cycles**. 
+1. **The Math Layer:** Before the code is even compiled, a mathematical solver (Z3 SMT) verifies that the developer hasn't accidentally written code that leaks the key to the internet. If the constraints fail, the program refuses to compile.
+2. **The Hardware Layer:** Once compiled, the program is handed a cryptographic "intent receipt." When the program runs on the simulated processor, a custom hardware gate checks the receipt with **single-digit-cycle overhead in the simulated datapath**.
 
-If the program attempts to break its promise—say, by opening a network socket to exfiltrate the key—the physical silicon instantly drops the connection. The operating system isn't even asked for permission. The enforcement happens in the bare metal.
+If the program attempts to break its promise—say, by opening a network socket to exfiltrate the key—the simulated hardware trap instantly drops the connection. The operating system isn't even asked for permission. The enforcement is modeled directly at the architectural level.
 
 ---
 
@@ -88,7 +88,7 @@ The hypervisor orchestrates the `telos_bootstrap` routine, utilizing an Ed25519-
 | **Policy Generation** | Natural Language AST Parsing | Manual YAML/JSON configs |
 | **Verification** | Z3 SMT Mathematical Bounds | Runtime heuristic monitoring |
 | **Execution Boundary** | Hardware Capability Gate (TCA-PMP) | eBPF/LSM Syscall Interception |
-| **Overhead** | ~2 Cycles (RTL Simulated) | ~400+ Cycles (Context switches) |
+| **Overhead** | Single-digit cycles (Simulated Datapath) | ~400+ Cycles (Context switches) |
 | **Data Tracking** | Hardware-level Taint (IFC) | User-space memory scanning |
 | **Interdiction** | Deterministic Silicon Trap | Asynchronous `SIGKILL` |
 
@@ -106,11 +106,11 @@ To quantify the architectural advantage of hardware-bounded intent enforcement, 
 | Operation Context | Cycle Count | Absolute Overhead vs Baseline |
 | :--- | :--- | :--- |
 | **Baseline Load** (No Security Gate) | 16 cycles | `0 cycles` (Reference) |
-| **TCA Native Store** (Hardware Inline Gate) | 18 cycles | `+2 cycles` |
+| **TCA Native Store** (Hardware Inline Gate) | ~18 cycles | `+2 cycles` (Simulated) |
 | **Simulated eBPF LSM Hook** (Software BPF Trampoline) | 437 cycles | `+421 cycles` |
 
 **Analysis:**
-The simulated eBPF hook incurred an overhead of **421 cycles**, serving as a highly conservative baseline that ignores real-world kernel penalties like context-switching and RCU locks. By contrast, the TCA hardware memory gate—evaluating the capability directly within the `EX/MEM` pipeline stages—incurred an absolute overhead of just **2 cycles**. This provides empirical justification for shifting the semantic boundary into physical silicon.
+The simulated eBPF hook incurred an overhead of **421 cycles**, serving as a highly conservative baseline that ignores real-world kernel penalties like context-switching and RCU locks. By contrast, the TCA hardware memory gate—evaluating the capability directly within the modeled `EX/MEM` pipeline stages—demonstrated an overhead of **approximately 2 cycles in RTL simulation**. This provides empirical justification for exploring the shift of the semantic boundary toward the hardware level.
 
 ---
 
@@ -123,7 +123,7 @@ The Sentinel Stack is an exploratory research project. The components represent 
 | `telos-lang` parser            | Implemented    | High-level AST generation from natural syntax.       |
 | Z3 IFC checks                  | Experimental   | Bounded verification of taint flows over the AST.    |
 | LLVM RISC-V backend            | Prototype      | Emits bare-metal RISC-V object code.                 |
-| TCA RTL modules                | Simulated      | Verilog Bloom filter logic synthesized in QEMU.      |
+| TCA RTL modules                | Simulated      | RTL-modeled Bloom filter behaviorally integrated into QEMU. |
 | Hypervisor integration         | Partial        | Basic M-Mode ebreak routing functioning.             |
 | Hardware Bloom filter          | RTL simulation | Validated in QEMU virt machine initialization.       |
 | End-to-end formal verification | Incomplete     | Requires full state-transition proof across layers.  |
@@ -150,6 +150,14 @@ Real systems architectures require constrained and explicit boundaries. The Sent
 * Direct Memory Access (DMA) capable adversaries.
 * Microarchitectural timing and covert channel leakage.
 * Undefined behavior outside the explicit Z3 constraint boundaries.
+
+## Known Limitations
+
+As an exploratory prototype, the current architecture has significant limitations requiring further research:
+* **SMT Solver Complexity:** Z3 constraint solving time scales non-linearly. Applying this compiler pipeline to a codebase the size of the Linux kernel or a modern web browser is currently intractable.
+* **Capability Revocation:** Hardware-level intent receipts lack a robust mechanism for dynamic revocation during runtime without flushing the pipeline.
+* **Multiprocess Synchronization:** The IFC lattice currently models single-threaded or strictly-partitioned state. Shared-memory concurrency introduces aliasing challenges not yet modeled by the SMT bounds.
+* **False Positives/Negatives:** The semantic mapping from natural language intent to rigid LTL constraints may result in overly restrictive (false positive) compilation failures.
 
 ---
 
