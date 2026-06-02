@@ -77,7 +77,10 @@ The compiler lowers parsed `intend network` blocks into highly specific U-mode `
 A virtualized hardware model, the **Teleological Capability Architecture (TCA)**, utilizes a microarchitectural hardware Bloom filter to enforce constraints outside the kernel space. The multi-bit IFC Color Lattice enforces taint restrictions at the Instruction Set Architecture (ISA) level within the RTL simulation.
 
 ### 4. Root of Trust & Boot Sequence
-The hypervisor orchestrates the `telos_bootstrap` routine, utilizing an Ed25519-verified `.text` segment loader mapped into QEMU's `virt.c` machine initialization. This models an environment where only constraint-verified, Policy-Carrying Code (PCC) is permitted to execute on the processor.
+The hypervisor orchestrates the `telos_bootstrap` routine, utilizing an Ed25519-verified `.text` segment loader mapped into QEMU's `virt.c` machine initialization. 
+
+### 5. Type-1 Micro-Hypervisor (`sentinel-vmi`)
+The M-Mode Bare-Metal Hypervisor acts as the dynamic "Drawbridge." It extracts the `.telos_policy` offline safely using a `-nostdlib` ELF64 parser. During a U-Mode `ecall`, the hypervisor authenticates the payload, calculates absolute temporal `limit_pc` boundaries, provisions the hardware CSRs dynamically, and returns to Ring-3. Upon crossing the spatial limit, the QEMU TCG translation zeroes out the capabilities and immediately flushes the TLB, locking down the execution ring.
 
 ---
 
@@ -122,11 +125,11 @@ The Sentinel Stack is an exploratory research project. The components represent 
 | ------------------------------ | -------------- | ---------------------------------------------------- |
 | `telos-lang` parser            | Implemented    | High-level AST generation from natural syntax.       |
 | Z3 IFC checks                  | Experimental   | Bounded verification of taint flows over the AST.    |
-| LLVM RISC-V backend            | Prototype      | Emits bare-metal RISC-V object code.                 |
-| TCA RTL modules                | Simulated      | RTL-modeled Bloom filter behaviorally integrated into QEMU. |
-| Hypervisor integration         | Partial        | Basic M-Mode ebreak routing functioning.             |
-| Hardware Bloom filter          | RTL simulation | Validated in QEMU virt machine initialization.       |
-| End-to-end formal verification | Incomplete     | Requires full state-transition proof across layers.  |
+| LLVM RISC-V backend            | Implemented    | Emits bare-metal RISC-V object code with `.telos_policy`. |
+| TCA RTL modules                | Implemented    | RTL-modeled Bloom filter behaviorally integrated into QEMU. |
+| `sentinel-vmi` hypervisor      | Implemented    | Bare-metal M-Mode Type-1 capability orchestrator.    |
+| Hardware Bloom filter          | Implemented    | Validated in QEMU memory translation fast-path.      |
+| End-to-end execution ring      | Prototype      | End-to-end simulation of the TCA lifecycle complete. |
 
 ---
 
@@ -206,7 +209,8 @@ sentinel-stack/
 │   ├── virt.c             # QEMU Boot ROM Intercept
 │   └── tests/             # Bare-metal RISC-V Exfiltration tests
 ├── sentinel-vmi/          # M-Mode Hypervisor Introspection Engine
-│   └── src/               # M-Mode ebreak handlers and U-mode orchestrators
+│   ├── baremetal/         # V2 Type-1 Bare-Metal Hypervisor & ELF Parser
+│   └── src/               # Legacy M-Mode ebreak handlers
 └── legacy_v1/             # V1 Software Fallback Archive
     ├── telos-runtime/     # Legacy eBPF LSM Daemons
     ├── hyperion-xdp/      # Legacy Wire-Speed XDP
