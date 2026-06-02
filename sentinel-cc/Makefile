@@ -47,7 +47,7 @@ install-keys: keys
 
 # 4. Build Victim (Signed, Static Inline Syscalls)
 victim: $(TESTS)/victim.c $(SRC_COMPILER)/build/SentinelPass.so sign_tool keys
-	$(CLANG) -fpass-plugin=$(SRC_COMPILER)/build/SentinelPass.so -O2 -fPIE -pie $(TESTS)/victim.c -o victim
+	$(CLANG) -fpass-plugin=$(SRC_COMPILER)/build/SentinelPass.so -O2 -fPIE -pie -Wl,-T,src/compiler/tca_linker.ld $(TESTS)/victim.c -o victim
 	./sign_tool victim priv.pem
 
 # 4b. Phase 2 Victim (Dynamic Linked - Uses Libc)
@@ -286,4 +286,66 @@ clean:
 	rm -f $(ATTACK_BINS)
 	rm -rf $(SRC_COMPILER)/build
 
-.PHONY: all attacks bench run run-audit run-phase2 run-cfi run-threaded run-fork test red-team keys install-keys install install-man install-systemd uninstall key-rotate key-revoke clean help version scc
+.PHONY: all attacks bench run run-audit run-phase2 run-cfi run-threaded run-fork test red-team keys install-keys install install-man install-systemd uninstall key-rotate key-revoke clean help version scc ptr_test
+
+# ==========================================
+# Phase 9: Sentinel Validation Targets
+# ==========================================
+
+ptr_test: ../tca-prototype/ptr_test.c $(SRC_COMPILER)/build/SentinelPass.so sign_tool keys
+	@echo "[+] 1. Compiling ptr_test.c to LLVM IR..."
+	$(CLANG) -S -emit-llvm -fPIE ../tca-prototype/ptr_test.c -o ptr_test.ll
+	
+	@echo "[+] 2. Applying Teleological Lifting via SentinelPass..."
+	opt -load-pass-plugin=$(SRC_COMPILER)/build/SentinelPass.so -passes=sentinel-tca ptr_test.ll -S -o ptr_test_lifted.ll
+	
+	@echo "[+] 3. Compiling lifted IR to object code..."
+	llc -relocation-model=pic -filetype=obj ptr_test_lifted.ll -o ptr_test.o
+	
+	@echo "[+] 4. Linking with TCA capability memory layout..."
+	$(CLANG) -c tests/mock_tca.S -o mock_tca.o
+	$(CLANG) -pie ptr_test.o mock_tca.o -Wl,-T,src/compiler/tca_linker.ld -o ptr_test
+	
+	@echo "[+] 5. Cryptographically signing the PT_SHADOW_PROOF segment..."
+	./sign_tool ptr_test priv.pem
+	
+	@echo "[SUCCESS] ptr_test validation binary ready for TCA hardware."
+
+ptr_test_riscv: ../tca-prototype/ptr_test.c $(SRC_COMPILER)/build/SentinelPass.so sign_tool keys
+	@echo "[+] 1. Compiling ptr_test.c to RISC-V LLVM IR..."
+	$(CLANG) --target=riscv64-unknown-elf -march=rv64gc -mabi=lp64d -ffreestanding -S -emit-llvm -fPIE -Iinclude ../tca-prototype/ptr_test.c -o ptr_test_riscv.ll
+	
+	@echo "[+] 2. Applying Teleological Lifting via SentinelPass..."
+	opt -load-pass-plugin=$(SRC_COMPILER)/build/SentinelPass.so -passes=sentinel-tca ptr_test_riscv.ll -S -o ptr_test_riscv_lifted.ll
+	
+	@echo "[+] 3. Compiling lifted IR to RISC-V object code..."
+	llc -march=riscv64 -relocation-model=pic -filetype=obj ptr_test_riscv_lifted.ll -o ptr_test_riscv.o
+	
+	@echo "[+] 4. Linking with TCA capability memory layout..."
+	$(CLANG) --target=riscv64-unknown-elf -nostdlib -fuse-ld=lld -pie ptr_test_riscv.o -Wl,-T,src/compiler/tca_linker.ld -o ptr_test_riscv
+	
+	@echo "[+] 5. Cryptographically signing the PT_SHADOW_PROOF segment..."
+	./sign_tool ptr_test_riscv priv.pem
+	
+	@echo "[SUCCESS] ptr_test_riscv validation binary ready for QEMU/Spike."
+
+benchmark_riscv: ../tca-prototype/benchmark.c ../tca-prototype/boot.S $(SRC_COMPILER)/build/SentinelPass.so sign_tool keys
+	@echo "[+] 1. Compiling benchmark.c to RISC-V LLVM IR..."
+	$(CLANG) --target=riscv64-unknown-elf -march=rv64gc -mcmodel=medany -mabi=lp64d -ffreestanding -S -emit-llvm -fPIE -Iinclude ../tca-prototype/benchmark.c -o benchmark_riscv.ll
+	
+	@echo "[+] 2. Applying Teleological Lifting via SentinelPass..."
+	opt -load-pass-plugin=$(SRC_COMPILER)/build/SentinelPass.so -passes=sentinel-tca benchmark_riscv.ll -S -o benchmark_riscv_lifted.ll
+	
+	@echo "[+] 3. Compiling lifted IR to RISC-V object code..."
+	llc -march=riscv64 -relocation-model=pic -filetype=obj benchmark_riscv_lifted.ll -o benchmark_riscv.o
+	
+	@echo "[+] 3b. Assembling boot trampoline..."
+	$(CLANG) --target=riscv64-unknown-elf -march=rv64gc -mabi=lp64d -c ../tca-prototype/boot.S -o benchmark_boot.o
+	
+	@echo "[+] 4. Linking with TCA capability memory layout..."
+	$(CLANG) --target=riscv64-unknown-elf -nostdlib -fuse-ld=lld benchmark_boot.o benchmark_riscv.o -Wl,-T,src/compiler/tca_linker.ld -Wl,--entry=_boot -o benchmark_riscv
+	
+	@echo "[+] 5. Cryptographically signing the PT_SHADOW_PROOF segment..."
+	./sign_tool benchmark_riscv priv.pem
+	
+	@echo "[SUCCESS] benchmark_riscv binary ready for TCA hardware."

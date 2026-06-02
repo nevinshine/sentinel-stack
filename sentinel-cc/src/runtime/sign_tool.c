@@ -25,8 +25,8 @@ static void print_usage(const char *prog) {
   printf("       %s --revoke <pub.pem> <reason> [crl_file]\n", prog);
   printf("       %s --fingerprint <pub.pem>\n\n", prog);
   printf("Signs a Sentinel-instrumented binary by computing\n");
-  printf("Ed25519(SHA-256(.text + .sentinel)) and writing the\n");
-  printf("signature into the .signature ELF section.\n\n");
+  printf("Ed25519(SHA-256(.text + .tca_got)) and writing the\n");
+  printf("signature into the .tca_signatures ELF section.\n\n");
   printf("Commands:\n");
   printf("  --revoke PEM REASON [FILE]  Add key to CRL (default: /etc/sentinel/policy.crl)\n");
   printf("  --fingerprint PEM          Print SHA-256 fingerprint of public key\n");
@@ -204,12 +204,12 @@ int main(int argc, char **argv) {
       if (text)
         found_sections |= 1;
     }
-    if (strcmp(name, ".sentinel") == 0) {
+    if (strcmp(name, ".tca_got") == 0) {
       sentinel = elf_getdata(scn, NULL);
       if (sentinel)
         found_sections |= 2;
     }
-    if (strcmp(name, ".signature") == 0) {
+    if (strcmp(name, ".tca_signatures") == 0) {
       sig_offset = shdr.sh_offset;
       sig_section_size = shdr.sh_size;
       found_sections |= 4;
@@ -226,19 +226,19 @@ int main(int argc, char **argv) {
     if (!(found_sections & 1))
       fprintf(stderr, "  Missing: .text\n");
     if (!(found_sections & 2))
-      fprintf(stderr, "  Missing: .sentinel\n");
+      fprintf(stderr, "  Missing: .tca_got\n");
     if (!(found_sections & 4))
-      fprintf(stderr, "  Missing: .signature\n");
+      fprintf(stderr, "  Missing: .tca_signatures\n");
     goto cleanup;
   }
 
   if (sig_section_size < SIG_SIZE) {
-    fprintf(stderr, "[FATAL] .signature section too small (%zu < %d).\n",
+    fprintf(stderr, "[FATAL] .tca_signatures section too small (%zu < %d).\n",
             sig_section_size, SIG_SIZE);
     goto cleanup;
   }
 
-  printf("[Signer] .text=%zu bytes, .sentinel=%zu bytes", text->d_size,
+  printf("[Signer] .text=%zu bytes, .tca_got=%zu bytes", text->d_size,
          sentinel->d_size);
   if (sentinel_cfi && sentinel_cfi->d_buf)
     printf(", .sentinel_cfi=%zu bytes", sentinel_cfi->d_size);
@@ -261,7 +261,7 @@ int main(int argc, char **argv) {
     goto cleanup;
   }
 
-  // 4. Compute & Sign: Ed25519(SHA-256(.text + .sentinel [+ .sentinel_cfi] [+ .sentinel_imports]))
+  // 4. Compute & Sign: Ed25519(SHA-256(.text + .tca_got [+ .sentinel_cfi] [+ .sentinel_imports]))
   // Same section order as loader verification — alphabetical for optional sections.
   unsigned char hash[32]; // SHA-256 output
   {
@@ -338,7 +338,7 @@ int main(int argc, char **argv) {
   }
 
   printf("[Signer] Successfully signed '%s' (SigLen=%zu, "
-         "Hash=SHA256(.text+.sentinel))\n",
+         "Hash=SHA256(.text+.tca_got))\n",
          bin, siglen);
   ret = 0; // Success
 

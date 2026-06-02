@@ -1,38 +1,33 @@
 #include <unistd.h>
 
-// Phase 1.2: Using Inline Syscalls with proper input/output constraints.
-// Ensures RAX is correctly handled (input: syscall num, output: return val).
+void llvm_telos_intent_start(void) asm("llvm.telos.intent.start");
+void llvm_telos_intent_end(void) asm("llvm.telos.intent.end");
+
+// Mock definitions for x86 linker
+void llvm_riscv_tca_cap_setintent(void* func, long intent) asm("llvm.riscv.tca.cap.setintent");
+void llvm_riscv_tca_cap_setintent(void* func, long intent) {}
+
+void llvm_riscv_tca_cap_clear(void) asm("llvm.riscv.tca.cap.clear");
+void llvm_riscv_tca_cap_clear(void) {}
+
 
 void safe_logger() {
   const char *msg = "SAFE\n";
-  long ret;
-  asm volatile("syscall"
-               : "=a"(ret)
-               : "a"(1),   // rax = 1 (write)
-                 "D"(1),   // rdi = 1 (fd)
-                 "S"(msg), // rsi = buf
-                 "d"(5)    // rdx = count
-               : "rcx", "r11", "memory");
+  llvm_telos_intent_start();
+  // Simulated hypervisor / intent-bound operation
+  write(1, msg, 5);
+  llvm_telos_intent_end();
 }
 
 void unsafe() {
   const char *msg = "UNSAFE\n";
-  long ret;
-  asm volatile("syscall"
-               : "=a"(ret)
-               : "a"(1),   // rax = 1 (write)
-                 "D"(1),   // rdi = 1 (fd)
-                 "S"(msg), // rsi = buf
-                 "d"(7)    // rdx = count
-               : "rcx", "r11", "memory");
+  write(1, msg, 7);
 }
 
-// Force linker to keep the signature section
-extern char __sentinel_signature[];
+// Provide actual array for the signature so sign_tool can overwrite it
+char __sentinel_signature[64] __attribute__((section(".signature"))) = {0};
 
 int main() {
-  // Create a reference to the signature so linker doesn't strip it
-  // The Pass will provide the definition.
   __asm__ volatile("" : : "r"(__sentinel_signature));
 
   safe_logger();
