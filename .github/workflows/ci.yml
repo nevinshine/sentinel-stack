@@ -150,3 +150,67 @@ jobs:
 
       - name: Test Cross-Layer Enforcement Parity
         run: sudo bash tests/integration/test_cross_layer_parity.sh
+
+  build-sentinel-vmi:
+    name: Build & Test sentinel-vmi
+    runs-on: ubuntu-latest
+    needs: sast-scan
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libelf-dev clang
+
+      - name: Build Sentinel VMI
+        working-directory: sentinel-vmi
+        run: make all
+
+  build-sentinel-smm:
+    name: Build sentinel-smm
+    runs-on: ubuntu-latest
+    needs: sast-scan
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install EDK2 Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential uuid-dev iasl git gcc nasm python3-distutils
+
+      - name: Setup EDK2 & Build
+        run: |
+          git clone https://github.com/tianocore/edk2.git
+          cd edk2
+          git submodule update --init
+          make -C BaseTools
+          export WORKSPACE=$PWD
+          source edksetup.sh
+          ln -s $GITHUB_WORKSPACE/sentinel-smm MdeModulePkg/sentinel-smm
+          build -a X64 -p MdeModulePkg/sentinel-smm/SentinelSmm.dsc -t GCC5 -b RELEASE
+
+  build-tca-prototype:
+    name: Build tca-prototype
+    runs-on: ubuntu-latest
+    needs: sast-scan
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install RISC-V Toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-riscv64-unknown-elf make
+
+      - name: Build TCA Bare-metal Tests
+        working-directory: tca-prototype
+        run: make os_isolation_test_v2

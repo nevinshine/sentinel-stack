@@ -14,6 +14,15 @@
 > 
 > 
 
+## Threat Model
+
+Sentinel-CC defends against control flow hijacking (e.g., Return-Oriented Programming) and unauthorized syscall execution by enforcing compile-time intent at runtime.
+**In Scope**: Code injection, syscall-number confusion, ROP chains, and execution from unauthorized execution regions (W^X violations).
+**Assumptions**: The LLVM compiler pass runs in a trusted environment, the Ed25519 signing key is securely stored, and the Linux kernel eBPF verifier is intact.
+**Out of Scope / Limitations**: JIT code (e.g., V8, JVM) and dynamically loaded plugins (via `dlopen`) generate syscall sites unknown at compile time. These require explicit dynamic loading flags (`--watch-dlopen`) or fall out of scope.
+
+---
+
 ## Architecture & Trust Chain
 
 The system establishes a continuous chain of trust from source code to runtime execution.
