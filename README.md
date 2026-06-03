@@ -11,6 +11,8 @@
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" />
 </p>
 
+> **Note:** The Sentinel Stack is an exploratory research project. All components are at varying stages of maturity, ranging from experimental to alpha prototypes.
+
 The Sentinel Stack is an experimental systems architecture designed to constrain the semantic gap between high-level program intent and low-level hardware execution.
 
 Traditional cybersecurity models often attempt to correlate high-level program intent with low-level execution context using software-mediated telemetry (e.g., eBPF, LSMs). This can result in non-deterministic enforcement and measurable runtime overhead. The Sentinel Stack explores hardware-bounded intent enforcement, replacing software-mediated hooks with an RTL-simulated hardware capability gate, intended to provide an order-of-magnitude reduction in mediation overhead.
@@ -213,7 +215,7 @@ sentinel-stack/
 │   └── src/               # Legacy M-Mode ebreak handlers
 └── legacy_v1/             # V1 Software Fallback Archive
     ├── telos-runtime/     # Legacy eBPF LSM Daemons
-    ├── hyperion-xdp/      # Legacy Wire-Speed XDP
+    ├── hyperion-xdp/      # Legacy Low-Latency XDP
     └── sentinel-cc/       # Legacy PCC Compiler
 ```
 

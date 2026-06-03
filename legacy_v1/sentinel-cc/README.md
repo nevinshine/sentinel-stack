@@ -1,5 +1,7 @@
 # Sentinel-CC: Policy-Carrying Code Enforcement
 
+> **Status:** Experimental prototype (alpha)
+
 **Sentinel-CC** is a security architecture that enforces compile-time intent at runtime. It correlates "what the compiler sees" with "what the kernel executes" by embedding security policies directly into the binary and determining execution validity via a cryptographic trust chain.
 
 > [!IMPORTANT]
@@ -610,7 +612,7 @@ sudo ./loader --audit ./victim      # Any test with audit output
 > * **v4.0.0 - v4.3.0:** Per-app call-graph filtering, JSON audit, systemd integration, dlopen monitoring, cgroup scoping.
 > * **v4.4.0:** Full dependency call-graph filtering, Learning Mode, Shadow Stack CFI, System-Wide Fallback.
 > * **v4.5.0:** TPM2-backed Root of Trust support via OpenSSL STORE API, enhanced `sentinel-sign` with `--revoke` and `--fingerprint` commands, formal CRL support (`/etc/sentinel/policy.crl`).
-> * **Performance:** 274 ns/syscall overhead (48.58%) — within wire-speed threshold. Real HTTP server: ~0.7 ms/request under full enforcement (44 sites, 0 violations).
+> * **Performance:** 274 ns/syscall overhead (48.58%) — within low-latency threshold. Real HTTP server: ~0.7 ms/request under full enforcement (44 sites, 0 violations).
 > * **Security:** 12/12 red-team attacks blocked + fork tracking. 3 unconditional-block hooks (ptrace, process_vm_writev, seccomp).
 > 
 > 
