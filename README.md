@@ -41,6 +41,8 @@ The V2 Architecture prototypes an intent-bounded pipeline spanning from compiler
 
 ![Cross-Layer Architecture](docs/architecture.svg)
 
+![Network Flow Chart](docs/network_flow.svg)
+
 ```mermaid
 graph TD
     classDef userSpace fill:#1e1e1e,stroke:#3776AB,stroke-width:2px,color:#fff

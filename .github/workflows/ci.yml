@@ -121,7 +121,7 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang llvm libbpf-dev
+          sudo apt-get install -y clang llvm libbpf-dev linux-headers-generic
       
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -158,7 +158,7 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang llvm libbpf-dev libelf-dev libkeyutils-dev cmake make
+          sudo apt-get install -y clang llvm libbpf-dev libelf-dev libkeyutils-dev cmake make linux-headers-generic
 
       - name: Make Sentinel-CC
         working-directory: sentinel-cc
