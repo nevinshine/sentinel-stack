@@ -6,7 +6,8 @@
 //
 // EXPECTED: Sentinel KILLS this process because the injected 'syscall'
 //           instruction is at an address NOT in the .sentinel policy.
-//           The VMA won't even be in the policy_registry → "Unknown VMA" → SIGKILL.
+//           The VMA won't even be in the policy_registry → "Unknown VMA" →
+//           SIGKILL.
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,8 +45,8 @@ int main() {
       0x48, 0xc7, 0xc7, 0x01, 0x00, 0x00, 0x00, // mov rdi, 1
       0x48, 0x8d, 0x35, 0x0a, 0x00, 0x00, 0x00, // lea rsi, [rip+10]
       0x48, 0xc7, 0xc2, 0x06, 0x00, 0x00, 0x00, // mov rdx, 6
-      0x0f, 0x05,                                 // syscall  ← ATTACK POINT
-      0xc3,                                       // ret
+      0x0f, 0x05,                               // syscall  ← ATTACK POINT
+      0xc3,                                     // ret
       // Embedded string "PWNED\n"
       0x50, 0x57, 0x4e, 0x45, 0x44, 0x0a};
 

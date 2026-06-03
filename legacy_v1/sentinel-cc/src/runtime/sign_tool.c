@@ -28,17 +28,23 @@ static void print_usage(const char *prog) {
   printf("Ed25519(SHA-256(.text + .tca_got)) and writing the\n");
   printf("signature into the .tca_signatures ELF section.\n\n");
   printf("Commands:\n");
-  printf("  --revoke PEM REASON [FILE]  Add key to CRL (default: /etc/sentinel/policy.crl)\n");
-  printf("  --fingerprint PEM          Print SHA-256 fingerprint of public key\n");
+  printf("  --revoke PEM REASON [FILE]  Add key to CRL (default: "
+         "/etc/sentinel/policy.crl)\n");
+  printf(
+      "  --fingerprint PEM          Print SHA-256 fingerprint of public key\n");
   printf("\nOptions:\n");
   printf("  --help       Show this help message\n");
   printf("  --version    Show version\n");
 }
 
 // Generate a CRL entry for the given public key
-static int cmd_revoke(const char *pem_path, const char *reason, const char *crl_path) {
+static int cmd_revoke(const char *pem_path, const char *reason,
+                      const char *crl_path) {
   FILE *fp = fopen(pem_path, "r");
-  if (!fp) { perror("fopen pubkey"); return 1; }
+  if (!fp) {
+    perror("fopen pubkey");
+    return 1;
+  }
   EVP_PKEY *pub = PEM_read_PUBKEY(fp, NULL, NULL, NULL);
   fclose(fp);
   if (!pub) {
@@ -51,7 +57,10 @@ static int cmd_revoke(const char *pem_path, const char *reason, const char *crl_
   unsigned char *der = NULL;
   int der_len = i2d_PUBKEY(pub, &der);
   EVP_PKEY_free(pub);
-  if (der_len <= 0) { fprintf(stderr, "[FATAL] DER encode failed\n"); return 1; }
+  if (der_len <= 0) {
+    fprintf(stderr, "[FATAL] DER encode failed\n");
+    return 1;
+  }
 
   unsigned char hash[32];
   unsigned int hlen = 0;
@@ -69,7 +78,10 @@ static int cmd_revoke(const char *pem_path, const char *reason, const char *crl_
 
   // Append to CRL file
   FILE *crl = fopen(crl_path, "a+");
-  if (!crl) { perror("fopen CRL"); return 1; }
+  if (!crl) {
+    perror("fopen CRL");
+    return 1;
+  }
 
   // Check if file is empty (needs header)
   fseek(crl, 0, SEEK_END);
@@ -88,15 +100,22 @@ static int cmd_revoke(const char *pem_path, const char *reason, const char *crl_
 
 static int cmd_fingerprint(const char *pem_path) {
   FILE *fp = fopen(pem_path, "r");
-  if (!fp) { perror("fopen"); return 1; }
+  if (!fp) {
+    perror("fopen");
+    return 1;
+  }
   EVP_PKEY *pub = PEM_read_PUBKEY(fp, NULL, NULL, NULL);
   fclose(fp);
-  if (!pub) { fprintf(stderr, "Cannot read key\n"); return 1; }
+  if (!pub) {
+    fprintf(stderr, "Cannot read key\n");
+    return 1;
+  }
 
   unsigned char *der = NULL;
   int der_len = i2d_PUBKEY(pub, &der);
   EVP_PKEY_free(pub);
-  if (der_len <= 0) return 1;
+  if (der_len <= 0)
+    return 1;
 
   unsigned char hash[32];
   unsigned int hlen = 0;
@@ -127,10 +146,12 @@ int main(int argc, char **argv) {
     }
     if (strcmp(argv[i], "--revoke") == 0) {
       if (i + 2 >= argc) {
-        fprintf(stderr, "Usage: %s --revoke <pub.pem> <reason> [crl_file]\n", argv[0]);
+        fprintf(stderr, "Usage: %s --revoke <pub.pem> <reason> [crl_file]\n",
+                argv[0]);
         return 1;
       }
-      const char *crl = (i + 3 < argc) ? argv[i + 3] : "/etc/sentinel/policy.crl";
+      const char *crl =
+          (i + 3 < argc) ? argv[i + 3] : "/etc/sentinel/policy.crl";
       return cmd_revoke(argv[i + 1], argv[i + 2], crl);
     }
     if (strcmp(argv[i], "--fingerprint") == 0) {
@@ -261,8 +282,9 @@ int main(int argc, char **argv) {
     goto cleanup;
   }
 
-  // 4. Compute & Sign: Ed25519(SHA-256(.text + .tca_got [+ .sentinel_cfi] [+ .sentinel_imports]))
-  // Same section order as loader verification — alphabetical for optional sections.
+  // 4. Compute & Sign: Ed25519(SHA-256(.text + .tca_got [+ .sentinel_cfi] [+
+  // .sentinel_imports])) Same section order as loader verification —
+  // alphabetical for optional sections.
   unsigned char hash[32]; // SHA-256 output
   {
     EVP_MD_CTX *hash_ctx = EVP_MD_CTX_new();

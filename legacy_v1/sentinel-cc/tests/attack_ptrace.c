@@ -14,7 +14,8 @@
 //           process calling ptrace is immediately killed with SIGKILL.
 //
 // NOTE: This test is designed to be run UNDER the Sentinel loader — the parent
-//       process (which IS monitored) attempts ptrace, and Sentinel should block it.
+//       process (which IS monitored) attempts ptrace, and Sentinel should block
+//       it.
 
 #include <errno.h>
 #include <signal.h>
@@ -69,7 +70,8 @@ int main() {
     waitpid(child, NULL, 0); // Wait for stop
     ptrace(PTRACE_DETACH, child, NULL, NULL);
   } else {
-    printf("[OK] ptrace ATTACH failed: %s (errno=%d)\n", strerror(errno), errno);
+    printf("[OK] ptrace ATTACH failed: %s (errno=%d)\n", strerror(errno),
+           errno);
     if (errno == EPERM) {
       printf("[OK] Permission denied — kernel or Sentinel blocked it.\n");
     } else {

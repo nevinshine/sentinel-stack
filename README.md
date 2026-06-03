@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/Verification-Z3%20SMT-blueviolet?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Execution-RTL%20Prototype-00b894?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Compiler-telos--lang-red?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Release-v2.0.0--rtl--prototype-blue?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Release-v0.3.0--alpha-blue?style=for-the-badge" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" />
 </p>
 
@@ -29,15 +29,17 @@ When a developer writes code in the Sentinel Stack, they declare their exact int
 > *"I intend to read a secure cryptographic key and hash it."*
 
 1. **The Math Layer:** Before the code is even compiled, a mathematical solver (Z3 SMT) verifies that the developer hasn't accidentally written code that leaks the key to the internet. If the constraints fail, the program refuses to compile.
-2. **The Hardware Layer:** Once compiled, the program is handed a cryptographic "intent receipt." When the program runs on the simulated processor, a custom hardware gate checks the receipt with **single-digit-cycle overhead in the simulated datapath**.
+2. **The Hardware Layer:** Once compiled, the program is handed a cryptographic "intent receipt." When the program runs on the simulated processor, a custom hardware gate checks the receipt with **simulated low-cycle overhead in RTL experiments**.
 
-If the program attempts to break its promise—say, by opening a network socket to exfiltrate the key—the simulated hardware trap instantly drops the connection. The operating system isn't even asked for permission. The enforcement is modeled directly at the architectural level.
+If the program attempts to break its promise—say, by opening a network socket to exfiltrate the key—the simulated hardware trap deterministically drops the connection within measured latency bounds. The operating system isn't even asked for permission. The enforcement is modeled directly at the architectural level.
 
 ---
 
 ## Architecture & Technical Deep Dive
 
 The V2 Architecture prototypes an intent-bounded pipeline spanning from compiler semantics to a virtualized hardware model. 
+
+![Cross-Layer Architecture](docs/architecture.svg)
 
 ```mermaid
 graph TD
@@ -171,6 +173,8 @@ As an exploratory prototype, the current architecture has significant limitation
 This architecture emphasizes reproducibility. I invite you to audit the constraints, review the compiler, and run the simulated execution paths:
 
 ### `make demo` Execution Trace
+
+![Terminal Demo](docs/terminal_demo.svg)
 
 ```bash
 git clone --recursive https://github.com/nevinshine/sentinel-stack.git

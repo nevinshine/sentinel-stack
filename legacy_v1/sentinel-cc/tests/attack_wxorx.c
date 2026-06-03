@@ -43,10 +43,10 @@ int main() {
       0x48, 0xc7, 0xc7, 0x01, 0x00, 0x00, 0x00, // mov rdi, 1 (stdout)
       0x48, 0x8d, 0x35, 0x11, 0x00, 0x00, 0x00, // lea rsi, [rip+17]
       0x48, 0xc7, 0xc2, 0x06, 0x00, 0x00, 0x00, // mov rdx, 6
-      0x0f, 0x05,                                 // syscall ← ATTACK
+      0x0f, 0x05,                               // syscall ← ATTACK
       0x48, 0xc7, 0xc0, 0x3c, 0x00, 0x00, 0x00, // mov rax, 60 (exit)
-      0x48, 0x31, 0xff,                           // xor rdi, rdi
-      0x0f, 0x05,                                 // syscall (exit)
+      0x48, 0x31, 0xff,                         // xor rdi, rdi
+      0x0f, 0x05,                               // syscall (exit)
       // "PWNED\n"
       0x50, 0x57, 0x4e, 0x45, 0x44, 0x0a};
 
@@ -60,7 +60,8 @@ int main() {
 
   if (mprotect(page, page_size, PROT_READ | PROT_EXEC) != 0) {
     perror("[Attack] mprotect failed (possibly blocked by Sentinel)");
-    printf("[OK] mprotect was blocked or failed — Sentinel may have intervened.\n");
+    printf("[OK] mprotect was blocked or failed — Sentinel may have "
+           "intervened.\n");
     munmap(page, page_size);
     return 0;
   }

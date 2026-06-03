@@ -25,9 +25,9 @@
  * Defines the enforcement posture for intercepted HECI messages.
  */
 enum sentinel_mei_policy {
-	SMEI_ALLOW,     /* Permit the HECI transaction silently                */
-	SMEI_LOG_ONLY,  /* Permit but emit a dmesg telemetry event             */
-	SMEI_DENY,      /* Block by overwriting return register with -EPERM    */
+  SMEI_ALLOW,    /* Permit the HECI transaction silently                */
+  SMEI_LOG_ONLY, /* Permit but emit a dmesg telemetry event             */
+  SMEI_DENY,     /* Block by overwriting return register with -EPERM    */
 };
 
 /* -------------------------------------------------------------------------
@@ -73,7 +73,7 @@ enum sentinel_mei_policy {
  * The uuid_le protocol_name is the first field of mei_client_properties,
  * which follows list_head (16) + kref (4 + 4 padding) = 24.
  */
-#define MEI_ME_CLIENT_GUID_OFFSET  24
+#define MEI_ME_CLIENT_GUID_OFFSET 24
 
 /* -------------------------------------------------------------------------
  * Restricted ME Client GUIDs (Default Deny List)
@@ -85,9 +85,9 @@ enum sentinel_mei_policy {
  * Reference: Intel MEI Client Bus Documentation & ME firmware analysis.
  */
 struct sentinel_mei_guid_entry {
-	guid_t guid;
-	const char *name;
-	enum sentinel_mei_policy policy;
+  guid_t guid;
+  const char *name;
+  enum sentinel_mei_policy policy;
 };
 
 /*
@@ -115,47 +115,47 @@ struct sentinel_mei_guid_entry {
 #define SENTINEL_MEI_RESTRICTED_GUIDS_COUNT 4
 
 static const struct sentinel_mei_guid_entry
-sentinel_mei_restricted_guids[SENTINEL_MEI_RESTRICTED_GUIDS_COUNT] = {
-	{
-		/* AMT Remote Control */
-		.guid   = GUID_INIT(0x12F80028, 0xB4B7, 0x4B2D,
-				    0xAC, 0xA8, 0x46, 0xE0, 0xFF, 0x65, 0x81, 0x4C),
-		.name   = "AMT Remote Control",
-		.policy = SMEI_DENY,
-	},
-	{
-		/* AMT Serial-Over-LAN (SOL) */
-		.guid   = GUID_INIT(0xFB3B192E, 0xE714, 0x44A4,
-				    0x8B, 0x22, 0x55, 0x82, 0x23, 0xDE, 0x6F, 0xF4),
-		.name   = "AMT SOL",
-		.policy = SMEI_DENY,
-	},
-	{
-		/* ICC (Integrated Clock Controller) */
-		.guid   = GUID_INIT(0xF934D0F2, 0x3E42, 0x402E,
-				    0x8C, 0xDF, 0x73, 0x01, 0x02, 0xAA, 0x13, 0xD1),
-		.name   = "ICC Clock Control",
-		.policy = SMEI_DENY,
-	},
-	{
-		/* MKHI (ME Kernel Host Interface) — LOG by default */
-		.guid   = GUID_INIT(0x8E6A6715, 0x9ABC, 0x4043,
-				    0x88, 0xEF, 0x9E, 0x39, 0xC6, 0xF6, 0x3E, 0x0F),
-		.name   = "MKHI",
-		.policy = SMEI_LOG_ONLY,
-	},
+    sentinel_mei_restricted_guids[SENTINEL_MEI_RESTRICTED_GUIDS_COUNT] = {
+        {
+            /* AMT Remote Control */
+            .guid = GUID_INIT(0x12F80028, 0xB4B7, 0x4B2D, 0xAC, 0xA8, 0x46,
+                              0xE0, 0xFF, 0x65, 0x81, 0x4C),
+            .name = "AMT Remote Control",
+            .policy = SMEI_DENY,
+        },
+        {
+            /* AMT Serial-Over-LAN (SOL) */
+            .guid = GUID_INIT(0xFB3B192E, 0xE714, 0x44A4, 0x8B, 0x22, 0x55,
+                              0x82, 0x23, 0xDE, 0x6F, 0xF4),
+            .name = "AMT SOL",
+            .policy = SMEI_DENY,
+        },
+        {
+            /* ICC (Integrated Clock Controller) */
+            .guid = GUID_INIT(0xF934D0F2, 0x3E42, 0x402E, 0x8C, 0xDF, 0x73,
+                              0x01, 0x02, 0xAA, 0x13, 0xD1),
+            .name = "ICC Clock Control",
+            .policy = SMEI_DENY,
+        },
+        {
+            /* MKHI (ME Kernel Host Interface) — LOG by default */
+            .guid = GUID_INIT(0x8E6A6715, 0x9ABC, 0x4043, 0x88, 0xEF, 0x9E,
+                              0x39, 0xC6, 0xF6, 0x3E, 0x0F),
+            .name = "MKHI",
+            .policy = SMEI_LOG_ONLY,
+        },
 };
 
 /* -------------------------------------------------------------------------
  * Telemetry Event Types (for structured dmesg logging)
  * ------------------------------------------------------------------------- */
 enum sentinel_mei_event {
-	SMEI_EVT_SEND_ALLOWED,
-	SMEI_EVT_SEND_BLOCKED,
-	SMEI_EVT_SEND_LOGGED,
-	SMEI_EVT_RECV_OBSERVED,
-	SMEI_EVT_PROBE_ATTACHED,
-	SMEI_EVT_PROBE_DETACHED,
+  SMEI_EVT_SEND_ALLOWED,
+  SMEI_EVT_SEND_BLOCKED,
+  SMEI_EVT_SEND_LOGGED,
+  SMEI_EVT_RECV_OBSERVED,
+  SMEI_EVT_PROBE_ATTACHED,
+  SMEI_EVT_PROBE_DETACHED,
 };
 
 /* -------------------------------------------------------------------------
@@ -165,25 +165,25 @@ enum sentinel_mei_event {
 #define SENTINEL_GENL_MCGRP "heci_events"
 
 enum sentinel_genl_attrs {
-	SENTINEL_ATTR_UNSPEC,
-	SENTINEL_ATTR_EVENT,
-	__SENTINEL_ATTR_MAX,
+  SENTINEL_ATTR_UNSPEC,
+  SENTINEL_ATTR_EVENT,
+  __SENTINEL_ATTR_MAX,
 };
 #define SENTINEL_ATTR_MAX (__SENTINEL_ATTR_MAX - 1)
 
 enum sentinel_genl_cmds {
-	SENTINEL_CMD_UNSPEC,
-	SENTINEL_CMD_EVENT,
-	__SENTINEL_CMD_MAX,
+  SENTINEL_CMD_UNSPEC,
+  SENTINEL_CMD_EVENT,
+  __SENTINEL_CMD_MAX,
 };
 #define SENTINEL_CMD_MAX (__SENTINEL_CMD_MAX - 1)
 
 /* Packed binary struct for zero-allocation userspace unpacking */
 struct sentinel_heci_event {
-	u32 pid;
-	u32 uid;
-	u32 action; /* 1 = DENY, 0 = LOG_ONLY */
-	u8  guid[16];
+  u32 pid;
+  u32 uid;
+  u32 action; /* 1 = DENY, 0 = LOG_ONLY */
+  u8 guid[16];
 } __attribute__((packed));
 
 #endif /* _SENTINEL_MEI_HOOK_H */

@@ -25,10 +25,8 @@ static long raw_sendmsg(int sockfd, const struct msghdr *msg, int flags) {
   long ret;
   __asm__ volatile("syscall"
                    : "=a"(ret)
-                   : "a"(46),         // __NR_sendmsg
-                     "D"((long)sockfd),
-                     "S"(msg),
-                     "d"((long)flags)
+                   : "a"(46), // __NR_sendmsg
+                     "D"((long)sockfd), "S"(msg), "d"((long)flags)
                    : "rcx", "r11", "memory");
   return ret;
 }
@@ -51,7 +49,7 @@ int main() {
   char buf[1] = {'F'};
   int fd_to_send = STDIN_FILENO;
 
-  struct iovec iov = { .iov_base = buf, .iov_len = 1 };
+  struct iovec iov = {.iov_base = buf, .iov_len = 1};
 
   union {
     char buf[CMSG_SPACE(sizeof(int))];
@@ -79,12 +77,14 @@ int main() {
   if (ret >= 0) {
     printf("[FAIL] sendmsg succeeded! Sent %ld bytes + fd.\n", ret);
     printf("[FAIL] An attacker could exfiltrate sensitive file descriptors!\n");
-    close(sv[0]); close(sv[1]);
+    close(sv[0]);
+    close(sv[1]);
     return 1;
   } else {
     printf("[OK] sendmsg failed (ret=%ld) — Sentinel blocked it.\n", ret);
     printf("[OK] FD passing is not allowed for this binary.\n");
-    close(sv[0]); close(sv[1]);
+    close(sv[0]);
+    close(sv[1]);
     return 0;
   }
 }

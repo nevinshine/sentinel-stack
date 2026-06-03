@@ -23,10 +23,10 @@ __attribute__((noinline)) void legitimate_write() {
   long ret;
   asm volatile("syscall"
                : "=a"(ret)
-               : "a"(1),           // write
-                 "D"(1),           // stdout
-                 "S"(msg),         // buf
-                 "d"(strlen(msg))  // len
+               : "a"(1),          // write
+                 "D"(1),          // stdout
+                 "S"(msg),        // buf
+                 "d"(strlen(msg)) // len
                : "rcx", "r11", "memory");
 }
 
@@ -50,9 +50,10 @@ __attribute__((noinline)) long hidden_getpid() {
 }
 
 // This is the REAL attack: an inline execve that tries to spawn a shell.
-// The pass WILL capture the 'syscall' instruction, so the offset IS whitelisted.
-// This demonstrates that current Sentinel allows it because it only checks
-// offset, not the syscall number. Phase 3 (argument validation) would block this.
+// The pass WILL capture the 'syscall' instruction, so the offset IS
+// whitelisted. This demonstrates that current Sentinel allows it because it
+// only checks offset, not the syscall number. Phase 3 (argument validation)
+// would block this.
 __attribute__((noinline)) void attack_execve() {
   printf("[Attack] Attempting execve(\"/bin/sh\") from inline asm...\n");
   fflush(stdout);
@@ -64,10 +65,10 @@ __attribute__((noinline)) void attack_execve() {
   long ret;
   asm volatile("syscall"
                : "=a"(ret)
-               : "a"(59),          // execve
-                 "D"(path),        // filename
-                 "S"(argv),        // argv
-                 "d"(envp)         // envp
+               : "a"(59),   // execve
+                 "D"(path), // filename
+                 "S"(argv), // argv
+                 "d"(envp)  // envp
                : "rcx", "r11", "memory");
 
   // If execve fails (blocked by Sentinel or just fails), we continue
@@ -87,15 +88,19 @@ int main() {
   // Step 2: getpid from a whitelisted offset — tests syscall-number blindness
   printf("[Step 2] getpid from whitelisted offset...\n");
   long pid = hidden_getpid();
-  printf("[Info] getpid returned: %ld (offset was whitelisted, nr=39 matches)\n", pid);
-  printf("[Note] Phase 3 NR binding is ACTIVE — wrong NR at this offset → SIGKILL.\n\n");
+  printf(
+      "[Info] getpid returned: %ld (offset was whitelisted, nr=39 matches)\n",
+      pid);
+  printf("[Note] Phase 3 NR binding is ACTIVE — wrong NR at this offset → "
+         "SIGKILL.\n\n");
 
   // Step 3: execve — the dangerous one
   printf("[Step 3] Attempting execve from inline asm...\n");
   attack_execve();
 
   printf("\n[Summary] Phase 3 syscall-number binding is ACTIVE.\n");
-  printf("[Summary] Each whitelisted offset has an expected NR. Mismatches → SIGKILL.\n");
+  printf("[Summary] Each whitelisted offset has an expected NR. Mismatches → "
+         "SIGKILL.\n");
   printf("[Summary] The execve attempt above should trigger NR_MISMATCH.\n");
   return 0;
 }

@@ -17,8 +17,11 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  sqlite3_exec(db, "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;", 0, 0, 0);
-  sqlite3_exec(db, "CREATE TABLE IF NOT EXISTS bench(id INTEGER PRIMARY KEY, val TEXT);", 0, 0, 0);
+  sqlite3_exec(db, "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;", 0, 0,
+               0);
+  sqlite3_exec(
+      db, "CREATE TABLE IF NOT EXISTS bench(id INTEGER PRIMARY KEY, val TEXT);",
+      0, 0, 0);
 
   struct timespec t0, t1;
   clock_gettime(CLOCK_MONOTONIC, &t0);

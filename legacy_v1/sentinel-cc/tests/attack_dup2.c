@@ -23,9 +23,8 @@ static long raw_dup2(int oldfd, int newfd) {
   long ret;
   __asm__ volatile("syscall"
                    : "=a"(ret)
-                   : "a"(33),       // __NR_dup2
-                     "D"((long)oldfd),
-                     "S"((long)newfd)
+                   : "a"(33), // __NR_dup2
+                     "D"((long)oldfd), "S"((long)newfd)
                    : "rcx", "r11", "memory");
   return ret;
 }

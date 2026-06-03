@@ -23,19 +23,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <syslog.h>
 #include <sys/ptrace.h>
 #include <sys/stat.h>
 #include <sys/user.h>
 #include <sys/wait.h>
+#include <syslog.h>
 #include <time.h>
 #include <unistd.h>
 
 extern char **environ;
 
 // --- Loader-specific constants ---
-#define VMA_BLOCK_SIZE  0x100000UL // 1MB
-#define VMA_BLOCK_PREFIX 44        // 64 - 20 = 44 bits for 1MB blocks
+#define VMA_BLOCK_SIZE 0x100000UL // 1MB
+#define VMA_BLOCK_PREFIX 44       // 64 - 20 = 44 bits for 1MB blocks
 #define MAX_POLICY_ENTRIES 4096
 #define PTRACE_STEP_LIMIT 10000
 
@@ -43,9 +43,9 @@ extern char **environ;
 // Must match the struct layout the compiler pass generates:
 //   { void *site, void *function, int64_t size }
 struct sentinel_policy_entry {
-  uint64_t site_addr;   // Absolute address of syscall site
-  uint64_t func_addr;   // Absolute address of enclosing function
-  int64_t  syscall_nr;  // Phase 3: encoded syscall number (0=any, >0 = nr+1)
+  uint64_t site_addr; // Absolute address of syscall site
+  uint64_t func_addr; // Absolute address of enclosing function
+  int64_t syscall_nr; // Phase 3: encoded syscall number (0=any, >0 = nr+1)
 };
 
 // --- Audit output format ---
@@ -60,13 +60,14 @@ static volatile sig_atomic_t g_reload = 0;
 static enum audit_format g_audit_fmt = AUDIT_FMT_TEXT;
 static enum audit_target g_audit_tgt = AUDIT_TGT_STDOUT;
 static int g_enforce_mode = ENFORCE_KILL; // default: fail-closed
-static int g_watch_dlopen = 0; // 1 = periodically re-scan /proc/maps for new libs
+static int g_watch_dlopen =
+    0; // 1 = periodically re-scan /proc/maps for new libs
 static char g_cgroup_path[512] = {0}; // cgroup v2 path for container scoping
-static int g_learn_mode = 0;     // 1 = learning mode (record, not enforce)
-static int g_shadow_cfi = 0;     // 1 = shadow stack CFI validation
-static int g_system_wide = 0;    // 1 = enforce fallback for ALL processes
-static int g_surface_report = 0; // 1 = print attack surface map and exit
-static int g_use_tpm = 0;        // 1 = verify signature via TPM-backed key
+static int g_learn_mode = 0;          // 1 = learning mode (record, not enforce)
+static int g_shadow_cfi = 0;          // 1 = shadow stack CFI validation
+static int g_system_wide = 0;         // 1 = enforce fallback for ALL processes
+static int g_surface_report = 0;      // 1 = print attack surface map and exit
+static int g_use_tpm = 0;             // 1 = verify signature via TPM-backed key
 
 // =============================================================================
 // Signal Handler — graceful cleanup
@@ -215,8 +216,9 @@ static int verify_signature(const char *binary_path) {
   }
 
   if (!text || !sentinel || !sig) {
-    fprintf(stderr, "[FATAL] Missing security sections (.text=%p .sentinel=%p "
-                    ".signature=%p)\n",
+    fprintf(stderr,
+            "[FATAL] Missing security sections (.text=%p .sentinel=%p "
+            ".signature=%p)\n",
             (void *)text, (void *)sentinel, (void *)sig);
     goto out;
   }
@@ -227,42 +229,45 @@ static int verify_signature(const char *binary_path) {
     if (!pub)
       goto out;
   } else {
-  // Load Public Key from Session Keyring
-  key_serial_t key_id =
-      keyctl_search(KEY_SPEC_SESSION_KEYRING, "user", "sentinel:pubkey", 0);
-  if (key_id == -1) {
-    // Fallback: try user keyring
-    key_id = keyctl_search(KEY_SPEC_USER_KEYRING, "user", "sentinel:pubkey", 0);
-  }
-  if (key_id == -1) {
-    fprintf(stderr,
-            "[FATAL] Key 'sentinel:pubkey' not found in any keyring.\n"
-            "  Add it with: keyctl add user sentinel:pubkey \"$(cat pub.pem)\" @s\n");
-    goto out;
-  }
+    // Load Public Key from Session Keyring
+    key_serial_t key_id =
+        keyctl_search(KEY_SPEC_SESSION_KEYRING, "user", "sentinel:pubkey", 0);
+    if (key_id == -1) {
+      // Fallback: try user keyring
+      key_id =
+          keyctl_search(KEY_SPEC_USER_KEYRING, "user", "sentinel:pubkey", 0);
+    }
+    if (key_id == -1) {
+      fprintf(stderr,
+              "[FATAL] Key 'sentinel:pubkey' not found in any keyring.\n"
+              "  Add it with: keyctl add user sentinel:pubkey \"$(cat "
+              "pub.pem)\" @s\n");
+      goto out;
+    }
 
-  long klen = keyctl_read(key_id, NULL, 0);
-  if (klen <= 0) {
-    perror("[FATAL] keyctl_read size");
-    goto out;
-  }
+    long klen = keyctl_read(key_id, NULL, 0);
+    if (klen <= 0) {
+      perror("[FATAL] keyctl_read size");
+      goto out;
+    }
 
-  keybuf = malloc(klen);
-  if (!keybuf) {
-    perror("[FATAL] malloc");
-    goto out;
-  }
+    keybuf = malloc(klen);
+    if (!keybuf) {
+      perror("[FATAL] malloc");
+      goto out;
+    }
 
-  long read_len = keyctl_read(key_id, keybuf, klen);
-  if (read_len != klen) {
-    fprintf(stderr, "[FATAL] Key read incomplete (%ld/%ld).\n", read_len, klen);
-    goto out;
-  }
+    long read_len = keyctl_read(key_id, keybuf, klen);
+    if (read_len != klen) {
+      fprintf(stderr, "[FATAL] Key read incomplete (%ld/%ld).\n", read_len,
+              klen);
+      goto out;
+    }
 
-  bio = BIO_new_mem_buf(keybuf, klen);
-  pub = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
-  if (!pub)
-    handle_openssl_error("PEM_read_bio_PUBKEY");
+    bio = BIO_new_mem_buf(keybuf, klen);
+    pub = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
+    if (!pub)
+      handle_openssl_error("PEM_read_bio_PUBKEY");
   } // end keyring path
 
   // Key revocation check
@@ -333,7 +338,7 @@ out:
 
   if (ret == 1) {
     printf("[Loader] Signature Verified. Integrity Confirmed.\n");
-    return fd;  // Return verified fd — caller uses fexecve()
+    return fd; // Return verified fd — caller uses fexecve()
   } else {
     if (fd >= 0)
       close(fd);
@@ -423,7 +428,8 @@ static int parse_sentinel_section(const char *binary_path, uint64_t *offsets,
     goto out;
   }
   if (version != SENTINEL_POLICY_VERSION) {
-    fprintf(stderr, "[FATAL] Invalid policy version: %u (expected %u)\n", version, SENTINEL_POLICY_VERSION);
+    fprintf(stderr, "[FATAL] Invalid policy version: %u (expected %u)\n",
+            version, SENTINEL_POLICY_VERSION);
     goto out;
   }
 
@@ -431,8 +437,8 @@ static int parse_sentinel_section(const char *binary_path, uint64_t *offsets,
   size_t entry_size = sizeof(struct sentinel_policy_entry);
   int n = (sentinel_data->d_size - 8) / entry_size;
 
-  printf("[Loader] .sentinel section: v%u, %d entries (%zu bytes)\n", version, n,
-         sentinel_data->d_size);
+  printf("[Loader] .sentinel section: v%u, %d entries (%zu bytes)\n", version,
+         n, sentinel_data->d_size);
 
   for (int i = 0; i < n && count < max_entries; i++) {
     struct sentinel_policy_entry *pe =
@@ -471,8 +477,7 @@ out:
 
 static int resolve_libc_syscall_sites(const char *libc_path,
                                       const char *sym_name,
-                                      uint64_t *offsets_out,
-                                      int max_offsets) {
+                                      uint64_t *offsets_out, int max_offsets) {
   int fd = -1;
   Elf *e = NULL;
   int count = 0;
@@ -530,8 +535,7 @@ static int resolve_libc_syscall_sites(const char *libc_path,
       continue;
     if (!(shdr.sh_flags & SHF_EXECINSTR))
       continue;
-    if (sym_addr < shdr.sh_addr ||
-        sym_addr >= shdr.sh_addr + shdr.sh_size)
+    if (sym_addr < shdr.sh_addr || sym_addr >= shdr.sh_addr + shdr.sh_size)
       continue;
 
     Elf_Data *data = elf_getdata(scn, NULL);
@@ -593,8 +597,8 @@ static int find_libc_path(pid_t pid, char *out_path, size_t path_size) {
 // =============================================================================
 // Generic: find a module's full path from /proc/PID/maps
 // =============================================================================
-static int find_module_path(pid_t pid, const char *needle,
-                            char *out_path, size_t path_size) {
+static int find_module_path(pid_t pid, const char *needle, char *out_path,
+                            size_t path_size) {
   char maps_path[64], line[512];
   snprintf(maps_path, sizeof(maps_path), "/proc/%d/maps", pid);
   FILE *fp = fopen(maps_path, "r");
@@ -622,8 +626,7 @@ static int find_module_path(pid_t pid, const char *needle,
 // Scan an ELF binary's executable sections for all 'syscall' (0f 05) opcodes.
 // Returns ELF-relative offsets of each syscall instruction found.
 // =============================================================================
-static int scan_elf_text_for_syscalls(const char *path,
-                                      uint64_t *offsets_out,
+static int scan_elf_text_for_syscalls(const char *path, uint64_t *offsets_out,
                                       int max_offsets) {
   int fd = -1;
   Elf *e = NULL;
@@ -680,10 +683,10 @@ static int scan_elf_text_for_syscalls(const char *path,
 //   4. Collect 0f 05 (syscall) sites only from reachable functions
 // =============================================================================
 
-#define MAX_LIBC_SYMS  8192
-#define MAX_REACHABLE  4096
+#define MAX_LIBC_SYMS 8192
+#define MAX_REACHABLE 4096
 #define CALLGRAPH_DEPTH_LIMIT 24
-#define DEFAULT_FUNC_SIZE 256  // Fallback when st_size == 0
+#define DEFAULT_FUNC_SIZE 256 // Fallback when st_size == 0
 
 struct libc_sym_entry {
   uint64_t addr;
@@ -693,15 +696,17 @@ struct libc_sym_entry {
 
 // Executable section data for byte scanning
 struct exec_section {
-  uint64_t vaddr;    // Section virtual address in ELF
-  uint8_t *data;     // Raw bytes (malloc'd copy)
-  size_t   size;
+  uint64_t vaddr; // Section virtual address in ELF
+  uint8_t *data;  // Raw bytes (malloc'd copy)
+  size_t size;
 };
 
 static int sym_addr_cmp(const void *a, const void *b) {
   const struct libc_sym_entry *sa = a, *sb = b;
-  if (sa->addr < sb->addr) return -1;
-  if (sa->addr > sb->addr) return 1;
+  if (sa->addr < sb->addr)
+    return -1;
+  if (sa->addr > sb->addr)
+    return 1;
   return 0;
 }
 
@@ -711,11 +716,16 @@ static int build_libc_symtab(const char *path, struct libc_sym_entry *out,
   int fd = -1, count = 0;
   Elf *e = NULL;
 
-  if (elf_version(EV_CURRENT) == EV_NONE) return 0;
+  if (elf_version(EV_CURRENT) == EV_NONE)
+    return 0;
   fd = open(path, O_RDONLY);
-  if (fd < 0) return 0;
+  if (fd < 0)
+    return 0;
   e = elf_begin(fd, ELF_C_READ, NULL);
-  if (!e) { close(fd); return 0; }
+  if (!e) {
+    close(fd);
+    return 0;
+  }
 
   Elf_Scn *scn = NULL;
   GElf_Shdr shdr;
@@ -724,7 +734,8 @@ static int build_libc_symtab(const char *path, struct libc_sym_entry *out,
     if (shdr.sh_type != SHT_DYNSYM && shdr.sh_type != SHT_SYMTAB)
       continue;
     Elf_Data *data = elf_getdata(scn, NULL);
-    if (!data) continue;
+    if (!data)
+      continue;
     int nsyms = (int)(shdr.sh_size / shdr.sh_entsize);
     for (int i = 0; i < nsyms && count < max; i++) {
       GElf_Sym sym;
@@ -733,13 +744,18 @@ static int build_libc_symtab(const char *path, struct libc_sym_entry *out,
       if (GELF_ST_TYPE(sym.st_info) != STT_FUNC || sym.st_value == 0)
         continue;
       char *name = elf_strptr(e, shdr.sh_link, sym.st_name);
-      if (!name || name[0] == '\0') continue;
+      if (!name || name[0] == '\0')
+        continue;
       // Deduplicate by address (aliases)
       int dup = 0;
       for (int j = 0; j < count; j++) {
-        if (out[j].addr == sym.st_value) { dup = 1; break; }
+        if (out[j].addr == sym.st_value) {
+          dup = 1;
+          break;
+        }
       }
-      if (dup) continue;
+      if (dup)
+        continue;
       out[count].addr = sym.st_value;
       out[count].size = sym.st_size ? sym.st_size : DEFAULT_FUNC_SIZE;
       strncpy(out[count].name, name, 127);
@@ -794,11 +810,16 @@ static int load_exec_sections(const char *path, struct exec_section *out,
                               int max) {
   int fd = -1, count = 0;
   Elf *e = NULL;
-  if (elf_version(EV_CURRENT) == EV_NONE) return 0;
+  if (elf_version(EV_CURRENT) == EV_NONE)
+    return 0;
   fd = open(path, O_RDONLY);
-  if (fd < 0) return 0;
+  if (fd < 0)
+    return 0;
   e = elf_begin(fd, ELF_C_READ, NULL);
-  if (!e) { close(fd); return 0; }
+  if (!e) {
+    close(fd);
+    return 0;
+  }
 
   Elf_Scn *scn = NULL;
   GElf_Shdr shdr;
@@ -807,10 +828,12 @@ static int load_exec_sections(const char *path, struct exec_section *out,
     if (shdr.sh_type != SHT_PROGBITS || !(shdr.sh_flags & SHF_EXECINSTR))
       continue;
     Elf_Data *data = elf_getdata(scn, NULL);
-    if (!data || !data->d_buf || data->d_size == 0) continue;
+    if (!data || !data->d_buf || data->d_size == 0)
+      continue;
     out[count].vaddr = shdr.sh_addr;
     out[count].data = malloc(data->d_size);
-    if (!out[count].data) continue;
+    if (!out[count].data)
+      continue;
     memcpy(out[count].data, data->d_buf, data->d_size);
     out[count].size = data->d_size;
     count++;
@@ -822,18 +845,19 @@ static int load_exec_sections(const char *path, struct exec_section *out,
 }
 
 static void free_exec_sections(struct exec_section *secs, int n) {
-  for (int i = 0; i < n; i++) free(secs[i].data);
+  for (int i = 0; i < n; i++)
+    free(secs[i].data);
 }
 
 // Get raw bytes for a given address range from loaded sections
 static uint8_t *get_bytes_at(struct exec_section *secs, int nsecs,
                              uint64_t addr, size_t len, size_t *avail) {
   for (int i = 0; i < nsecs; i++) {
-    if (addr >= secs[i].vaddr &&
-        addr < secs[i].vaddr + secs[i].size) {
+    if (addr >= secs[i].vaddr && addr < secs[i].vaddr + secs[i].size) {
       uint64_t off = addr - secs[i].vaddr;
       *avail = secs[i].size - off;
-      if (*avail > len) *avail = len;
+      if (*avail > len)
+        *avail = len;
       return secs[i].data + off;
     }
   }
@@ -844,21 +868,27 @@ static uint8_t *get_bytes_at(struct exec_section *secs, int nsecs,
 // Parse .sentinel_imports from binary ELF.
 // Returns number of imports found; fills imports[] with pointers into blob.
 // Caller must free(*blob).
-static int parse_sentinel_imports(const char *binary_path,
-                                  char ***imports_out, char **blob_out) {
+static int parse_sentinel_imports(const char *binary_path, char ***imports_out,
+                                  char **blob_out) {
   int fd = -1, count = 0;
   Elf *e = NULL;
   *imports_out = NULL;
   *blob_out = NULL;
 
-  if (elf_version(EV_CURRENT) == EV_NONE) return 0;
+  if (elf_version(EV_CURRENT) == EV_NONE)
+    return 0;
   fd = open(binary_path, O_RDONLY);
-  if (fd < 0) return 0;
+  if (fd < 0)
+    return 0;
   e = elf_begin(fd, ELF_C_READ, NULL);
-  if (!e) { close(fd); return 0; }
+  if (!e) {
+    close(fd);
+    return 0;
+  }
 
   size_t shstrndx;
-  if (elf_getshdrstrndx(e, &shstrndx) != 0) goto out;
+  if (elf_getshdrstrndx(e, &shstrndx) != 0)
+    goto out;
 
   Elf_Scn *scn = NULL;
   GElf_Shdr shdr;
@@ -867,20 +897,26 @@ static int parse_sentinel_imports(const char *binary_path,
     char *name = elf_strptr(e, shstrndx, shdr.sh_name);
     if (name && strcmp(name, ".sentinel_imports") == 0) {
       Elf_Data *data = elf_getdata(scn, NULL);
-      if (!data || !data->d_buf || data->d_size == 0) break;
+      if (!data || !data->d_buf || data->d_size == 0)
+        break;
 
       // Copy blob
       char *blob = malloc(data->d_size);
-      if (!blob) break;
+      if (!blob)
+        break;
       memcpy(blob, data->d_buf, data->d_size);
 
       // Count null-terminated strings
       int n = 0;
       for (size_t i = 0; i < data->d_size; i++) {
-        if (blob[i] == '\0') n++;
+        if (blob[i] == '\0')
+          n++;
       }
       char **arr = calloc(n, sizeof(char *));
-      if (!arr) { free(blob); break; }
+      if (!arr) {
+        free(blob);
+        break;
+      }
 
       int idx = 0;
       char *p = blob;
@@ -902,8 +938,10 @@ static int parse_sentinel_imports(const char *binary_path,
   }
 
 out:
-  if (e) elf_end(e);
-  if (fd >= 0) close(fd);
+  if (e)
+    elf_end(e);
+  if (fd >= 0)
+    close(fd);
   return count;
 }
 
@@ -919,14 +957,20 @@ static int parse_sentinel_cfi(const char *binary_path,
   int fd = -1, count = 0;
   Elf *e = NULL;
 
-  if (elf_version(EV_CURRENT) == EV_NONE) return 0;
+  if (elf_version(EV_CURRENT) == EV_NONE)
+    return 0;
   fd = open(binary_path, O_RDONLY);
-  if (fd < 0) return 0;
+  if (fd < 0)
+    return 0;
   e = elf_begin(fd, ELF_C_READ, NULL);
-  if (!e) { close(fd); return 0; }
+  if (!e) {
+    close(fd);
+    return 0;
+  }
 
   size_t shstrndx;
-  if (elf_getshdrstrndx(e, &shstrndx) != 0) goto out;
+  if (elf_getshdrstrndx(e, &shstrndx) != 0)
+    goto out;
 
   Elf_Scn *scn = NULL;
   GElf_Shdr shdr;
@@ -935,7 +979,8 @@ static int parse_sentinel_cfi(const char *binary_path,
     char *name = elf_strptr(e, shstrndx, shdr.sh_name);
     if (name && strcmp(name, ".sentinel_cfi") == 0) {
       Elf_Data *data = elf_getdata(scn, NULL);
-      if (!data || !data->d_buf) break;
+      if (!data || !data->d_buf)
+        break;
       size_t entry_size = sizeof(struct sentinel_cfi_entry);
       int n = data->d_size / entry_size;
       for (int i = 0; i < n && count < max; i++) {
@@ -950,8 +995,10 @@ static int parse_sentinel_cfi(const char *binary_path,
   }
 
 out:
-  if (e) elf_end(e);
-  if (fd >= 0) close(fd);
+  if (e)
+    elf_end(e);
+  if (fd >= 0)
+    close(fd);
   return count;
 }
 
@@ -967,13 +1014,15 @@ static int trace_libc_callgraph(const char *libc_path,
   // Load executable sections
   struct exec_section sections[16];
   int nsecs = load_exec_sections(libc_path, sections, 16);
-  if (nsecs == 0) return 0;
+  if (nsecs == 0)
+    return 0;
 
   // BFS work queue (indices into syms[])
   int *queue = calloc(MAX_REACHABLE, sizeof(int));
   uint8_t *visited = calloc(nsyms, sizeof(uint8_t));
   if (!queue || !visited) {
-    free(queue); free(visited);
+    free(queue);
+    free(visited);
     free_exec_sections(sections, nsecs);
     return 0;
   }
@@ -983,7 +1032,8 @@ static int trace_libc_callgraph(const char *libc_path,
   // Seed the BFS with imported symbols
   for (int i = 0; i < nimports; i++) {
     struct libc_sym_entry *sym = find_sym_by_name(syms, nsyms, imports[i]);
-    if (!sym) continue;
+    if (!sym)
+      continue;
     int idx = sym - syms;
     if (!visited[idx] && q_tail < MAX_REACHABLE) {
       visited[idx] = 1;
@@ -996,25 +1046,24 @@ static int trace_libc_callgraph(const char *libc_path,
   // plus functions commonly reached via indirect calls (FILE vtables,
   // allocator internals) that pure E8/E9 scanning can't follow.
   const char *essential_seeds[] = {
-      "__syscall_cancel_arch", "__syscall_cancel",
-      "__internal_syscall_cancel", "__libc_do_syscall",
+      "__syscall_cancel_arch", "__syscall_cancel", "__internal_syscall_cancel",
+      "__libc_do_syscall",
       // Commonly reached via FILE vtable / stdio internals
-      "__GI___ioctl", "__ioctl", "ioctl",
-      "__isatty", "isatty", "__isatty_nostatus",
-      "__tcgetattr", "tcgetattr",
-      "__GI___fstat64", "__fstat64", "__fxstat64", "fstat", "__fstat",
-      "__GI___lseek64", "__lseek64", "lseek64", "lseek",
+      "__GI___ioctl", "__ioctl", "ioctl", "__isatty", "isatty",
+      "__isatty_nostatus", "__tcgetattr", "tcgetattr", "__GI___fstat64",
+      "__fstat64", "__fxstat64", "fstat", "__fstat", "__GI___lseek64",
+      "__lseek64", "lseek64", "lseek",
       // Memory allocator internals (brk/mmap paths)
       "__brk", "__sbrk", "__mmap", "__munmap",
       // Signal-related (frequently called via indirect dispatch)
       "__sigaction", "__rt_sigaction", "__sigprocmask",
       // Exit / atexit handlers
-      "_exit", "__GI__exit", "__exit_funcs",
-      NULL
-  };
+      "_exit", "__GI__exit", "__exit_funcs", NULL};
   for (int i = 0; essential_seeds[i]; i++) {
-    struct libc_sym_entry *sym = find_sym_by_name(syms, nsyms, essential_seeds[i]);
-    if (!sym) continue;
+    struct libc_sym_entry *sym =
+        find_sym_by_name(syms, nsyms, essential_seeds[i]);
+    if (!sym)
+      continue;
     int idx = sym - syms;
     if (!visited[idx] && q_tail < MAX_REACHABLE) {
       visited[idx] = 1;
@@ -1030,12 +1079,15 @@ static int trace_libc_callgraph(const char *libc_path,
     const char *imp = imports[i];
     // Strip leading underscores to get the base name
     const char *base = imp;
-    while (*base == '_') base++;
+    while (*base == '_')
+      base++;
     int base_len = strlen(base);
-    if (base_len < 2) continue;
+    if (base_len < 2)
+      continue;
 
     for (int s = 0; s < nsyms; s++) {
-      if (visited[s] || q_tail >= MAX_REACHABLE) continue;
+      if (visited[s] || q_tail >= MAX_REACHABLE)
+        continue;
       const char *sn = syms[s].name;
       // Match: exact import, __import, __GI_import, __GI___import,
       // import_nostatus, __import_nostatus, __import_nocancel, etc.
@@ -1064,12 +1116,15 @@ static int trace_libc_callgraph(const char *libc_path,
 
     // Get function bytes
     size_t avail = 0;
-    uint8_t *bytes = get_bytes_at(sections, nsecs, sym->addr, sym->size, &avail);
-    if (!bytes || avail < 5) continue;
+    uint8_t *bytes =
+        get_bytes_at(sections, nsecs, sym->addr, sym->size, &avail);
+    if (!bytes || avail < 5)
+      continue;
 
     // Scan for E8 rel32 (CALL) and E9 rel32 (JMP, tail calls)
     for (size_t j = 0; j + 4 < avail; j++) {
-      if (bytes[j] != 0xE8 && bytes[j] != 0xE9) continue;
+      if (bytes[j] != 0xE8 && bytes[j] != 0xE9)
+        continue;
       // Compute target: addr_after_insn + displacement
       int32_t disp;
       memcpy(&disp, &bytes[j + 1], 4);
@@ -1078,7 +1133,8 @@ static int trace_libc_callgraph(const char *libc_path,
 
       // Resolve target to a symbol
       struct libc_sym_entry *callee = find_sym_at_addr(syms, nsyms, target);
-      if (!callee) continue;
+      if (!callee)
+        continue;
       int callee_idx = callee - syms;
       if (!visited[callee_idx] && q_tail < MAX_REACHABLE) {
         visited[callee_idx] = 1;
@@ -1094,8 +1150,10 @@ static int trace_libc_callgraph(const char *libc_path,
   for (int i = 0; i < q_tail && nsites < max_sites; i++) {
     struct libc_sym_entry *sym = &syms[queue[i]];
     size_t avail = 0;
-    uint8_t *bytes = get_bytes_at(sections, nsecs, sym->addr, sym->size, &avail);
-    if (!bytes) continue;
+    uint8_t *bytes =
+        get_bytes_at(sections, nsecs, sym->addr, sym->size, &avail);
+    if (!bytes)
+      continue;
     for (size_t j = 0; j + 1 < avail && nsites < max_sites; j++) {
       if (bytes[j] == 0x0f && bytes[j + 1] == 0x05) {
         syscall_sites_out[nsites++] = sym->addr + j;
@@ -1115,25 +1173,33 @@ static int trace_libc_callgraph(const char *libc_path,
 // Seeds from the library's .dynsym exports that match the binary's imports.
 // Returns syscall site offsets (ELF-relative) reachable via BFS.
 // =============================================================================
-static int trace_lib_callgraph(const char *lib_path,
-                               char **app_imports, int nimports,
-                               uint64_t *syscall_sites_out, int max_sites,
-                               int *reachable_count_out) {
+static int trace_lib_callgraph(const char *lib_path, char **app_imports,
+                               int nimports, uint64_t *syscall_sites_out,
+                               int max_sites, int *reachable_count_out) {
   // Build symbol table for this library
   struct libc_sym_entry *syms = calloc(MAX_LIBC_SYMS, sizeof(*syms));
-  if (!syms) return 0;
+  if (!syms)
+    return 0;
   int nsyms = build_libc_symtab(lib_path, syms, MAX_LIBC_SYMS);
-  if (nsyms == 0) { free(syms); return 0; }
+  if (nsyms == 0) {
+    free(syms);
+    return 0;
+  }
 
   // Load executable sections
   struct exec_section sections[16];
   int nsecs = load_exec_sections(lib_path, sections, 16);
-  if (nsecs == 0) { free(syms); return 0; }
+  if (nsecs == 0) {
+    free(syms);
+    return 0;
+  }
 
   int *queue = calloc(MAX_REACHABLE, sizeof(int));
   uint8_t *visited = calloc(nsyms, sizeof(uint8_t));
   if (!queue || !visited) {
-    free(queue); free(visited); free(syms);
+    free(queue);
+    free(visited);
+    free(syms);
     free_exec_sections(sections, nsecs);
     return 0;
   }
@@ -1143,7 +1209,8 @@ static int trace_lib_callgraph(const char *lib_path,
   // Seed: for each of the binary's imports, check if this library exports it
   for (int i = 0; i < nimports && q_tail < MAX_REACHABLE; i++) {
     struct libc_sym_entry *sym = find_sym_by_name(syms, nsyms, app_imports[i]);
-    if (!sym) continue;
+    if (!sym)
+      continue;
     int idx = sym - syms;
     if (!visited[idx]) {
       visited[idx] = 1;
@@ -1155,11 +1222,14 @@ static int trace_lib_callgraph(const char *lib_path,
   for (int i = 0; i < nimports; i++) {
     const char *imp = app_imports[i];
     const char *base = imp;
-    while (*base == '_') base++;
+    while (*base == '_')
+      base++;
     int base_len = strlen(base);
-    if (base_len < 2) continue;
+    if (base_len < 2)
+      continue;
     for (int s = 0; s < nsyms && q_tail < MAX_REACHABLE; s++) {
-      if (visited[s]) continue;
+      if (visited[s])
+        continue;
       const char *sn = syms[s].name;
       if (strstr(sn, base) &&
           (strncmp(sn, "__", 2) == 0 || strncmp(sn, base, base_len) == 0)) {
@@ -1179,15 +1249,19 @@ static int trace_lib_callgraph(const char *lib_path,
       depth_boundary = q_tail;
     }
     size_t avail = 0;
-    uint8_t *bytes = get_bytes_at(sections, nsecs, sym->addr, sym->size, &avail);
-    if (!bytes || avail < 5) continue;
+    uint8_t *bytes =
+        get_bytes_at(sections, nsecs, sym->addr, sym->size, &avail);
+    if (!bytes || avail < 5)
+      continue;
     for (size_t j = 0; j + 4 < avail; j++) {
-      if (bytes[j] != 0xE8 && bytes[j] != 0xE9) continue;
+      if (bytes[j] != 0xE8 && bytes[j] != 0xE9)
+        continue;
       int32_t disp;
       memcpy(&disp, &bytes[j + 1], 4);
       uint64_t target = sym->addr + j + 5 + (int64_t)disp;
       struct libc_sym_entry *callee = find_sym_at_addr(syms, nsyms, target);
-      if (!callee) continue;
+      if (!callee)
+        continue;
       int callee_idx = callee - syms;
       if (!visited[callee_idx] && q_tail < MAX_REACHABLE) {
         visited[callee_idx] = 1;
@@ -1203,8 +1277,10 @@ static int trace_lib_callgraph(const char *lib_path,
   for (int i = 0; i < q_tail && nsites < max_sites; i++) {
     struct libc_sym_entry *sym = &syms[queue[i]];
     size_t avail = 0;
-    uint8_t *bytes = get_bytes_at(sections, nsecs, sym->addr, sym->size, &avail);
-    if (!bytes) continue;
+    uint8_t *bytes =
+        get_bytes_at(sections, nsecs, sym->addr, sym->size, &avail);
+    if (!bytes)
+      continue;
     for (size_t j = 0; j + 1 < avail && nsites < max_sites; j++) {
       if (bytes[j] == 0x0f && bytes[j + 1] == 0x05)
         syscall_sites_out[nsites++] = sym->addr + j;
@@ -1222,13 +1298,15 @@ static int trace_lib_callgraph(const char *lib_path,
 // Key Revocation: Check if the current public key is revoked
 // Reads /etc/sentinel/revoked_keys (SHA-256 fingerprints, hex, one per line)
 // Also checks /etc/sentinel/policy.crl for signed revocation entries.
-// CRL format: "VERSION 1\nTIMESTAMP <epoch>\nREVOKE <hex_fingerprint> <reason>\n"
+// CRL format: "VERSION 1\nTIMESTAMP <epoch>\nREVOKE <hex_fingerprint>
+// <reason>\n"
 // =============================================================================
 
 // Parse a CRL file and check if the given fingerprint is listed
 static int check_crl_file(const char *crl_path, const char *fp_hex) {
   FILE *cfp = fopen(crl_path, "r");
-  if (!cfp) return 0;
+  if (!cfp)
+    return 0;
 
   char line[512];
   int version_ok = 0;
@@ -1236,8 +1314,10 @@ static int check_crl_file(const char *crl_path, const char *fp_hex) {
 
   while (fgets(line, sizeof(line), cfp)) {
     char *nl = strchr(line, '\n');
-    if (nl) *nl = '\0';
-    if (line[0] == '#' || line[0] == '\0') continue;
+    if (nl)
+      *nl = '\0';
+    if (line[0] == '#' || line[0] == '\0')
+      continue;
 
     if (strncmp(line, "VERSION ", 8) == 0) {
       int ver = atoi(line + 8);
@@ -1264,9 +1344,10 @@ static int check_crl_file(const char *crl_path, const char *fp_hex) {
       // Format: REVOKE <64-char hex fingerprint> <reason>
       if (strncmp(line + 7, fp_hex, 64) == 0) {
         const char *reason = (strlen(line) > 71) ? line + 72 : "unspecified";
-        fprintf(stderr,
-                "[FATAL] Key REVOKED via CRL (reason: %s, fingerprint: %.16s...)\n",
-                reason, fp_hex);
+        fprintf(
+            stderr,
+            "[FATAL] Key REVOKED via CRL (reason: %s, fingerprint: %.16s...)\n",
+            reason, fp_hex);
         fclose(cfp);
         return 1;
       }
@@ -1280,12 +1361,16 @@ static int is_key_revoked(EVP_PKEY *pub) {
   // Compute SHA-256 fingerprint of the public key DER encoding
   unsigned char *der = NULL;
   int der_len = i2d_PUBKEY(pub, &der);
-  if (der_len <= 0) return 0; // Can't check — allow
+  if (der_len <= 0)
+    return 0; // Can't check — allow
 
   unsigned char fp[32];
   unsigned int fp_len = 0;
   EVP_MD_CTX *ctx = EVP_MD_CTX_new();
-  if (!ctx) { OPENSSL_free(der); return 0; }
+  if (!ctx) {
+    OPENSSL_free(der);
+    return 0;
+  }
   EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);
   EVP_DigestUpdate(ctx, der, der_len);
   EVP_DigestFinal_ex(ctx, fp, &fp_len);
@@ -1304,8 +1389,10 @@ static int is_key_revoked(EVP_PKEY *pub) {
     char line[256];
     while (fgets(line, sizeof(line), rfp)) {
       char *nl = strchr(line, '\n');
-      if (nl) *nl = '\0';
-      if (line[0] == '#' || line[0] == '\0') continue;
+      if (nl)
+        *nl = '\0';
+      if (line[0] == '#' || line[0] == '\0')
+        continue;
       if (strncmp(line, fp_hex, 64) == 0) {
         fclose(rfp);
         fprintf(stderr,
@@ -1349,8 +1436,7 @@ static unsigned long get_libc_base(pid_t pid) {
 // Populate VMA entries for a module using 1MB LPM blocks
 // =============================================================================
 static int populate_vma_for_module(int vma_fd, pid_t pid,
-                                   const char *module_name,
-                                   uint32_t module_id,
+                                   const char *module_name, uint32_t module_id,
                                    unsigned long *out_base) {
   char path[64], line[512];
   snprintf(path, sizeof(path), "/proc/%d/maps", pid);
@@ -1466,8 +1552,7 @@ static void setup_cfi_policy(struct sentinel_bpf *skel, const char *bin_path,
 
   for (int i = 0; i < policy_count; i++) {
     uint64_t adj = policy_offsets[i] - elf_load_base;
-    if (adj >= do_write_addr &&
-        adj < do_write_addr + do_write_size) {
+    if (adj >= do_write_addr && adj < do_write_addr + do_write_size) {
       syscall_offset = adj;
       found_in_sentinel = 1;
       printf("[Loader] CFI: Found syscall in do_write via .sentinel at 0x%lx\n",
@@ -1507,22 +1592,38 @@ out:
 // =============================================================================
 static const char *action_str(uint8_t action) {
   switch (action) {
-  case EVENT_ALLOW:       return "ALLOW";
-  case EVENT_BLOCK:       return "BLOCK";
-  case EVENT_CFI_OK:      return "ALLOW+CFI";
-  case EVENT_CFI_FAIL:    return "CFI-FAIL";
-  case EVENT_NR_MISMATCH: return "NR-MISMATCH";
-  case EVENT_FORK_TRACK:  return "FORK-TRACK";
-  case EVENT_FEXIT_OK:    return "FEXIT";
-  case EVENT_DLOPEN_EXT:  return "DLOPEN-EXT";
-  case EVENT_PERMISSIVE:  return "PERMISSIVE";
-  case EVENT_LEARN:       return "LEARN";
-  case EVENT_LIB_DENY:    return "LIB-DENY";
-  case EVENT_SHADOW_OK:   return "SHADOW-OK";
-  case EVENT_SHADOW_FAIL: return "SHADOW-FAIL";
-  case EVENT_FALLBACK:    return "FALLBACK";
-  case EVENT_KOBJ_DENY:   return "KOBJ-DENY";
-  default:                return "UNKNOWN";
+  case EVENT_ALLOW:
+    return "ALLOW";
+  case EVENT_BLOCK:
+    return "BLOCK";
+  case EVENT_CFI_OK:
+    return "ALLOW+CFI";
+  case EVENT_CFI_FAIL:
+    return "CFI-FAIL";
+  case EVENT_NR_MISMATCH:
+    return "NR-MISMATCH";
+  case EVENT_FORK_TRACK:
+    return "FORK-TRACK";
+  case EVENT_FEXIT_OK:
+    return "FEXIT";
+  case EVENT_DLOPEN_EXT:
+    return "DLOPEN-EXT";
+  case EVENT_PERMISSIVE:
+    return "PERMISSIVE";
+  case EVENT_LEARN:
+    return "LEARN";
+  case EVENT_LIB_DENY:
+    return "LIB-DENY";
+  case EVENT_SHADOW_OK:
+    return "SHADOW-OK";
+  case EVENT_SHADOW_FAIL:
+    return "SHADOW-FAIL";
+  case EVENT_FALLBACK:
+    return "FALLBACK";
+  case EVENT_KOBJ_DENY:
+    return "KOBJ-DENY";
+  default:
+    return "UNKNOWN";
   }
 }
 
@@ -1546,29 +1647,28 @@ static int audit_event_handler(void *ctx, void *data, size_t data_sz) {
     int n;
     if (evt->action == EVENT_FEXIT_OK) {
       n = snprintf(json, sizeof(json),
-        "{\"ts\":\"%s.%03ldZ\",\"action\":\"%s\","
-        "\"pid\":%u,\"tid\":%u,\"syscall_nr\":%u,"
-        "\"ret\":%ld}",
-        tbuf, ts.tv_nsec / 1000000, action,
-        evt->tgid, evt->tid, evt->syscall_nr,
-        (long)evt->offset);
+                   "{\"ts\":\"%s.%03ldZ\",\"action\":\"%s\","
+                   "\"pid\":%u,\"tid\":%u,\"syscall_nr\":%u,"
+                   "\"ret\":%ld}",
+                   tbuf, ts.tv_nsec / 1000000, action, evt->tgid, evt->tid,
+                   evt->syscall_nr, (long)evt->offset);
     } else {
       n = snprintf(json, sizeof(json),
-        "{\"ts\":\"%s.%03ldZ\",\"action\":\"%s\","
-        "\"pid\":%u,\"tid\":%u,\"syscall_nr\":%u,"
-        "\"rip\":\"0x%lx\",\"offset\":\"0x%lx\",\"module\":%u}",
-        tbuf, ts.tv_nsec / 1000000, action,
-        evt->tgid, evt->tid, evt->syscall_nr,
-        (unsigned long)evt->syscall_rip, (unsigned long)evt->offset,
-        evt->module_id);
+                   "{\"ts\":\"%s.%03ldZ\",\"action\":\"%s\","
+                   "\"pid\":%u,\"tid\":%u,\"syscall_nr\":%u,"
+                   "\"rip\":\"0x%lx\",\"offset\":\"0x%lx\",\"module\":%u}",
+                   tbuf, ts.tv_nsec / 1000000, action, evt->tgid, evt->tid,
+                   evt->syscall_nr, (unsigned long)evt->syscall_rip,
+                   (unsigned long)evt->offset, evt->module_id);
     }
     if (n < 0 || (size_t)n >= sizeof(json))
       return 0;
 
     if (g_audit_tgt == AUDIT_TGT_SYSLOG) {
-      int prio = (evt->action == EVENT_BLOCK || evt->action == EVENT_CFI_FAIL
-                  || evt->action == EVENT_NR_MISMATCH)
-                 ? LOG_WARNING : LOG_INFO;
+      int prio = (evt->action == EVENT_BLOCK || evt->action == EVENT_CFI_FAIL ||
+                  evt->action == EVENT_NR_MISMATCH)
+                     ? LOG_WARNING
+                     : LOG_INFO;
       syslog(prio, "%s", json);
     } else {
       printf("%s\n", json);
@@ -1577,19 +1677,18 @@ static int audit_event_handler(void *ctx, void *data, size_t data_sz) {
     // Original text format
     if (evt->action == EVENT_FEXIT_OK) {
       if (g_audit_tgt == AUDIT_TGT_SYSLOG)
-        syslog(LOG_INFO, "%s PID=%u TID=%u SYS=%u RET=%ld",
-               action, evt->tgid, evt->tid, evt->syscall_nr,
-               (long)evt->offset);
+        syslog(LOG_INFO, "%s PID=%u TID=%u SYS=%u RET=%ld", action, evt->tgid,
+               evt->tid, evt->syscall_nr, (long)evt->offset);
       else
-        printf("[Audit] %s PID=%u TID=%u SYS=%u RET=%ld\n",
-               action, evt->tgid, evt->tid, evt->syscall_nr,
-               (long)evt->offset);
+        printf("[Audit] %s PID=%u TID=%u SYS=%u RET=%ld\n", action, evt->tgid,
+               evt->tid, evt->syscall_nr, (long)evt->offset);
     } else if (g_audit_tgt == AUDIT_TGT_SYSLOG) {
-      int prio = (evt->action == EVENT_BLOCK || evt->action == EVENT_CFI_FAIL
-                  || evt->action == EVENT_NR_MISMATCH)
-                 ? LOG_WARNING : LOG_INFO;
-      syslog(prio, "%s PID=%u TID=%u SYS=%u RIP=0x%lx Off=0x%lx Mod=%u",
-             action, evt->tgid, evt->tid, evt->syscall_nr,
+      int prio = (evt->action == EVENT_BLOCK || evt->action == EVENT_CFI_FAIL ||
+                  evt->action == EVENT_NR_MISMATCH)
+                     ? LOG_WARNING
+                     : LOG_INFO;
+      syslog(prio, "%s PID=%u TID=%u SYS=%u RIP=0x%lx Off=0x%lx Mod=%u", action,
+             evt->tgid, evt->tid, evt->syscall_nr,
              (unsigned long)evt->syscall_rip, (unsigned long)evt->offset,
              evt->module_id);
     } else {
@@ -1609,7 +1708,7 @@ static int audit_event_handler(void *ctx, void *data, size_t data_sz) {
 // does a full-text syscall scan, and registers it in the policy_registry.
 // This addresses the limitation where dlopen()-loaded plugins have no policy.
 // =============================================================================
-#define DLOPEN_SCAN_INTERVAL_MS 500  // Check every 500ms
+#define DLOPEN_SCAN_INTERVAL_MS 500 // Check every 500ms
 #define MAX_WATCHED_LIBS 64
 
 struct watched_lib {
@@ -1669,8 +1768,8 @@ static void register_watched_lib(const char *path, uint32_t mod_id) {
 // Returns the number of newly discovered libraries.
 static int dlopen_scan(pid_t pid, int vma_fd, int registry_fd,
                        uint32_t *next_mod_id, const char *bin_name,
-                       unsigned long libc_base,
-                       char **app_imports, int nimports) {
+                       unsigned long libc_base, char **app_imports,
+                       int nimports) {
   char maps_path[64], line[512];
   snprintf(maps_path, sizeof(maps_path), "/proc/%d/maps", pid);
   FILE *fp = fopen(maps_path, "r");
@@ -1714,9 +1813,9 @@ static int dlopen_scan(pid_t pid, int vma_fd, int registry_fd,
 
     char map_name[16];
     snprintf(map_name, sizeof(map_name), "dl_pol_%u", *next_mod_id);
-    int lib_map_fd = bpf_map_create(BPF_MAP_TYPE_HASH, map_name,
-                                    sizeof(uint64_t), sizeof(uint64_t),
-                                    4096, NULL);
+    int lib_map_fd =
+        bpf_map_create(BPF_MAP_TYPE_HASH, map_name, sizeof(uint64_t),
+                       sizeof(uint64_t), 4096, NULL);
     if (lib_map_fd < 0)
       continue;
 
@@ -1727,16 +1826,16 @@ static int dlopen_scan(pid_t pid, int vma_fd, int registry_fd,
     }
 
     unsigned long lib_base = 0;
-    int lib_blocks = populate_vma_for_module(vma_fd, pid, short_name,
-                                             mod_id, &lib_base);
+    int lib_blocks =
+        populate_vma_for_module(vma_fd, pid, short_name, mod_id, &lib_base);
 
     // Call-graph-guided filtering (or fallback to full scan)
     uint64_t sites[512];
     int nsites = 0;
     int reachable = 0;
     if (app_imports && nimports > 0)
-      nsites = trace_lib_callgraph(path, app_imports, nimports,
-                                   sites, 512, &reachable);
+      nsites = trace_lib_callgraph(path, app_imports, nimports, sites, 512,
+                                   &reachable);
     if (nsites == 0)
       nsites = scan_elf_text_for_syscalls(path, sites, 512);
     int added = 0;
@@ -1764,15 +1863,24 @@ static int dlopen_scan(pid_t pid, int vma_fd, int registry_fd,
 // =============================================================================
 static const char *subsys_name(int subsys) {
   switch (subsys) {
-  case SUBSYS_PROCESS:    return "process";
-  case SUBSYS_FILESYSTEM: return "filesystem";
-  case SUBSYS_NETWORK:    return "network";
-  case SUBSYS_MEMORY:     return "memory";
-  case SUBSYS_IPC:        return "ipc";
-  case SUBSYS_SIGNAL:     return "signal";
-  case SUBSYS_DEVICE:     return "device";
-  case SUBSYS_SECURITY:   return "security";
-  default:                return "other";
+  case SUBSYS_PROCESS:
+    return "process";
+  case SUBSYS_FILESYSTEM:
+    return "filesystem";
+  case SUBSYS_NETWORK:
+    return "network";
+  case SUBSYS_MEMORY:
+    return "memory";
+  case SUBSYS_IPC:
+    return "ipc";
+  case SUBSYS_SIGNAL:
+    return "signal";
+  case SUBSYS_DEVICE:
+    return "device";
+  case SUBSYS_SECURITY:
+    return "security";
+  default:
+    return "other";
   }
 }
 
@@ -1780,39 +1888,138 @@ static const char *subsys_name(int subsys) {
 static int nr_to_subsystem(uint32_t nr) {
   switch (nr) {
   // Process
-  case 56: case 57: case 58: case 59: case 60: case 61: case 62:
-  case 157: case 160: case 231: case 272: case 435:
+  case 56:
+  case 57:
+  case 58:
+  case 59:
+  case 60:
+  case 61:
+  case 62:
+  case 157:
+  case 160:
+  case 231:
+  case 272:
+  case 435:
     return SUBSYS_PROCESS;
   // Filesystem
-  case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 8:
-  case 17: case 18: case 19: case 20: case 21: case 76: case 77:
-  case 78: case 79: case 80: case 82: case 83: case 84: case 85: case 86:
-  case 87: case 88: case 89: case 90: case 133: case 155: case 161:
-  case 217: case 257: case 258: case 259: case 260: case 261: case 262:
-  case 263: case 264: case 265: case 266: case 267: case 268: case 269:
-  case 316: case 437: case 438: case 439: case 440:
+  case 0:
+  case 1:
+  case 2:
+  case 3:
+  case 4:
+  case 5:
+  case 6:
+  case 8:
+  case 17:
+  case 18:
+  case 19:
+  case 20:
+  case 21:
+  case 76:
+  case 77:
+  case 78:
+  case 79:
+  case 80:
+  case 82:
+  case 83:
+  case 84:
+  case 85:
+  case 86:
+  case 87:
+  case 88:
+  case 89:
+  case 90:
+  case 133:
+  case 155:
+  case 161:
+  case 217:
+  case 257:
+  case 258:
+  case 259:
+  case 260:
+  case 261:
+  case 262:
+  case 263:
+  case 264:
+  case 265:
+  case 266:
+  case 267:
+  case 268:
+  case 269:
+  case 316:
+  case 437:
+  case 438:
+  case 439:
+  case 440:
     return SUBSYS_FILESYSTEM;
   // Network
-  case 41: case 42: case 43: case 44: case 45: case 46: case 47: case 48:
-  case 49: case 50: case 51: case 52: case 53: case 54: case 55:
-  case 288: case 289: case 290: case 291: case 292: case 293:
+  case 41:
+  case 42:
+  case 43:
+  case 44:
+  case 45:
+  case 46:
+  case 47:
+  case 48:
+  case 49:
+  case 50:
+  case 51:
+  case 52:
+  case 53:
+  case 54:
+  case 55:
+  case 288:
+  case 289:
+  case 290:
+  case 291:
+  case 292:
+  case 293:
     return SUBSYS_NETWORK;
   // Memory
-  case 9: case 10: case 11: case 12: case 25: case 26: case 27: case 28:
-  case 67: case 237: case 278: case 279:
+  case 9:
+  case 10:
+  case 11:
+  case 12:
+  case 25:
+  case 26:
+  case 27:
+  case 28:
+  case 67:
+  case 237:
+  case 278:
+  case 279:
     return SUBSYS_MEMORY;
   // IPC
-  case 22: case 23: case 29: case 30: case 31: case 32: case 33: case 66:
+  case 22:
+  case 23:
+  case 29:
+  case 30:
+  case 31:
+  case 32:
+  case 33:
+  case 66:
     return SUBSYS_IPC;
   // Signal
-  case 13: case 14: case 15: case 34: case 35: case 127: case 128: case 129:
-  case 130: case 131:
+  case 13:
+  case 14:
+  case 15:
+  case 34:
+  case 35:
+  case 127:
+  case 128:
+  case 129:
+  case 130:
+  case 131:
     return SUBSYS_SIGNAL;
   // Device
-  case 16: case 73: case 187:
+  case 16:
+  case 73:
+  case 187:
     return SUBSYS_DEVICE;
   // Security
-  case 101: case 246: case 317:
+  case 101:
+  case 246:
+  case 317:
     return SUBSYS_SECURITY;
   default:
     return SUBSYS_OTHER;
@@ -1870,26 +2077,37 @@ static void print_usage(const char *prog) {
   printf("  --version             Show version\n");
   printf("  --audit               Enable real-time audit event printing\n");
   printf("  --fexit               Enable post-syscall return value auditing\n");
-  printf("  --permissive          Log violations but do not kill (audit-only)\n");
-  printf("  --enforce=MODE        Enforcement: kill (default), permissive, term\n");
-  printf("  --watch-dlopen        Monitor for dlopen() and extend policy at runtime\n");
-  printf("  --cgroup=PATH         Restrict enforcement to processes in this cgroup v2\n");
+  printf(
+      "  --permissive          Log violations but do not kill (audit-only)\n");
+  printf("  --enforce=MODE        Enforcement: kill (default), permissive, "
+         "term\n");
+  printf("  --watch-dlopen        Monitor for dlopen() and extend policy at "
+         "runtime\n");
+  printf("  --cgroup=PATH         Restrict enforcement to processes in this "
+         "cgroup v2\n");
   printf("  --audit-format=FMT    Output format: text (default), json\n");
   printf("  --audit-target=TGT    Output target: stdout (default), syslog\n");
-  printf("  --learn               Learning mode: record syscall profile, generate policy\n");
-  printf("  --shadow-cfi          Enable shadow stack CFI validation in kernel\n");
+  printf("  --learn               Learning mode: record syscall profile, "
+         "generate policy\n");
+  printf(
+      "  --shadow-cfi          Enable shadow stack CFI validation in kernel\n");
   printf("  --system-wide         Enforce fallback policy for ALL processes\n");
-  printf("  --surface             Print kernel attack surface report and exit\n");
-  printf("  --tpm                 Use TPM2-backed key for signature verification\n");
+  printf(
+      "  --surface             Print kernel attack surface report and exit\n");
+  printf("  --tpm                 Use TPM2-backed key for signature "
+         "verification\n");
   printf("\nEnforcement Modes:\n");
   printf("  kill        SIGKILL on violation (default, fail-closed)\n");
-  printf("  permissive  Log violation but allow syscall (for policy development)\n");
-  printf("  term        SIGTERM on violation (allows graceful shutdown handlers)\n");
+  printf("  permissive  Log violation but allow syscall (for policy "
+         "development)\n");
+  printf("  term        SIGTERM on violation (allows graceful shutdown "
+         "handlers)\n");
   printf("\nExample:\n");
   printf("  sudo %s ./victim\n", prog);
   printf("  sudo %s --audit --permissive ./victim_phase2\n", prog);
   printf("  sudo %s --audit --watch-dlopen --enforce=term ./app\n", prog);
-  printf("  sudo %s --audit --audit-format=json --audit-target=syslog ./app\n", prog);
+  printf("  sudo %s --audit --audit-format=json --audit-target=syslog ./app\n",
+         prog);
 }
 
 // =============================================================================
@@ -2036,7 +2254,6 @@ int main(int argc, char **argv) {
       parse_sentinel_section(binary, policy_offsets, policy_syscall_nrs,
                              MAX_POLICY_ENTRIES, &text_vaddr, &elf_load_base);
 
-
   if (policy_count < 0) {
     fprintf(stderr, "[FATAL] Failed to parse .sentinel section.\n");
     return 1;
@@ -2075,30 +2292,32 @@ int main(int argc, char **argv) {
   printf("[Loader] BPF programs loaded and attached.\n");
   {
     const char *mode_str = "kill";
-    if (g_enforce_mode == ENFORCE_PERMISSIVE) mode_str = "permissive";
-    else if (g_enforce_mode == ENFORCE_TERM) mode_str = "term";
-   
+    if (g_enforce_mode == ENFORCE_PERMISSIVE)
+      mode_str = "permissive";
+    else if (g_enforce_mode == ENFORCE_TERM)
+      mode_str = "term";
 
-  // --- Populate cgroup map if --cgroup specified ---
-  if (g_cgroup_path[0] != '\0') {
-    // Get cgroup ID by stat()ing the cgroup directory
-    struct stat cg_stat;
-    if (stat(g_cgroup_path, &cg_stat) == 0) {
-      uint64_t cgid = (uint64_t)cg_stat.st_ino;
-      uint32_t val = 1;
-      int cg_fd = bpf_map__fd(g_skel->maps.cgroup_map);
-      if (bpf_map_update_elem(cg_fd, &cgid, &val, BPF_ANY) == 0) {
-        printf("[Loader] Cgroup filter: %s (id=%lu)\n",
-               g_cgroup_path, (unsigned long)cgid);
+    // --- Populate cgroup map if --cgroup specified ---
+    if (g_cgroup_path[0] != '\0') {
+      // Get cgroup ID by stat()ing the cgroup directory
+      struct stat cg_stat;
+      if (stat(g_cgroup_path, &cg_stat) == 0) {
+        uint64_t cgid = (uint64_t)cg_stat.st_ino;
+        uint32_t val = 1;
+        int cg_fd = bpf_map__fd(g_skel->maps.cgroup_map);
+        if (bpf_map_update_elem(cg_fd, &cgid, &val, BPF_ANY) == 0) {
+          printf("[Loader] Cgroup filter: %s (id=%lu)\n", g_cgroup_path,
+                 (unsigned long)cgid);
+        } else {
+          fprintf(stderr, "[Warn] Failed to add cgroup ID: %s\n",
+                  strerror(errno));
+        }
       } else {
-        fprintf(stderr, "[Warn] Failed to add cgroup ID: %s\n",
-                strerror(errno));
+        fprintf(stderr, "[Warn] Cannot stat cgroup path '%s': %s\n",
+                g_cgroup_path, strerror(errno));
       }
-    } else {
-      fprintf(stderr, "[Warn] Cannot stat cgroup path '%s': %s\n",
-              g_cgroup_path, strerror(errno));
     }
-  } printf("[Loader] Enforcement mode: %s\n", mode_str);
+    printf("[Loader] Enforcement mode: %s\n", mode_str);
   }
 
   // --- 4. Setup audit ring buffer if requested ---
@@ -2120,11 +2339,13 @@ int main(int argc, char **argv) {
     const char *la = getenv("LD_AUDIT");
     const char *ll = getenv("LD_LIBRARY_PATH");
     if (lp && lp[0])
-      fprintf(stderr, "[WARN] LD_PRELOAD detected: %s (will be sanitized)\n", lp);
+      fprintf(stderr, "[WARN] LD_PRELOAD detected: %s (will be sanitized)\n",
+              lp);
     if (la && la[0])
       fprintf(stderr, "[WARN] LD_AUDIT detected: %s (will be sanitized)\n", la);
     if (ll && ll[0])
-      fprintf(stderr, "[WARN] LD_LIBRARY_PATH detected: %s (will be sanitized)\n", ll);
+      fprintf(stderr,
+              "[WARN] LD_LIBRARY_PATH detected: %s (will be sanitized)\n", ll);
   }
 
   // --- 5. Start Victim with Ptrace ---
@@ -2145,7 +2366,7 @@ int main(int argc, char **argv) {
     perror("[Child] fexecve");
     _exit(1);
   }
-  close(verified_fd);  // Parent no longer needs it
+  close(verified_fd); // Parent no longer needs it
 
   // --- 6. Wait for child exec() trap ---
   int status;
@@ -2174,7 +2395,8 @@ int main(int argc, char **argv) {
     waitpid(g_child, &status, 0);
 
     if (WIFEXITED(status)) {
-      fprintf(stderr, "[Loader] Child exited before libc loaded (static binary?)\n");
+      fprintf(stderr,
+              "[Loader] Child exited before libc loaded (static binary?)\n");
       // Static binary — no libc to wait for, proceed with binary-only policy
       break;
     }
@@ -2191,10 +2413,10 @@ int main(int argc, char **argv) {
   const char *bin_name = strrchr(binary, '/');
   bin_name = bin_name ? bin_name + 1 : binary;
 
-  int bin_blocks =
-      populate_vma_for_module(vma_fd, g_child, bin_name, MODULE_MAIN, &bin_base);
-  printf("[Loader] Binary VMA: base=0x%lx (%d LPM blocks)\n",
-         bin_base, bin_blocks);
+  int bin_blocks = populate_vma_for_module(vma_fd, g_child, bin_name,
+                                           MODULE_MAIN, &bin_base);
+  printf("[Loader] Binary VMA: base=0x%lx (%d LPM blocks)\n", bin_base,
+         bin_blocks);
 
   int libc_blocks = -1;
   if (libc_base != 0) {
@@ -2230,7 +2452,8 @@ int main(int argc, char **argv) {
   // BPF computes: offset = rip - base_addr (from /proc/pid/maps)
   // Loader must store: elf_vaddr - elf_load_base
   //   PIE  (ET_DYN):  elf_load_base ≈ 0   → offset ≈ elf_vaddr
-  //   Static (ET_EXEC): elf_load_base = 0x400000 → offset = elf_vaddr - 0x400000
+  //   Static (ET_EXEC): elf_load_base = 0x400000 → offset = elf_vaddr -
+  //   0x400000
   (void)text_vaddr;
   int loaded = 0;
   for (int i = 0; i < policy_count; i++) {
@@ -2277,7 +2500,8 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[Warn] Failed to create libc policy map.\n");
     } else {
       uint32_t mod_libc = MODULE_LIBC;
-      if (bpf_map_update_elem(registry_fd, &mod_libc, &libc_map_fd, BPF_ANY) != 0) {
+      if (bpf_map_update_elem(registry_fd, &mod_libc, &libc_map_fd, BPF_ANY) !=
+          0) {
         fprintf(stderr, "[FATAL] Failed to register libc policy map: %s\n",
                 strerror(errno));
         close(libc_map_fd);
@@ -2296,7 +2520,8 @@ int main(int argc, char **argv) {
         // =================================================================
         if (nimports > 0) {
           printf("[Loader] Per-app libc filtering: %d imports from "
-                 ".sentinel_imports\n", nimports);
+                 ".sentinel_imports\n",
+                 nimports);
 
           // Build libc symbol table
           struct libc_sym_entry *libc_syms_table =
@@ -2306,8 +2531,8 @@ int main(int argc, char **argv) {
             goto libc_fallback;
           }
 
-          int nsyms = build_libc_symtab(libc_path, libc_syms_table,
-                                        MAX_LIBC_SYMS);
+          int nsyms =
+              build_libc_symtab(libc_path, libc_syms_table, MAX_LIBC_SYMS);
           printf("[Loader] Libc symbol table: %d function symbols\n", nsyms);
 
           if (nsyms == 0) {
@@ -2318,31 +2543,48 @@ int main(int argc, char **argv) {
           // Trace call graph from imports
           uint64_t cg_sites[2048];
           int reachable_count = 0;
-          int cg_nsites = trace_libc_callgraph(libc_path, libc_syms_table,
-                                                nsyms, app_imports, nimports,
-                                                cg_sites, 2048,
-                                                &reachable_count);
+          int cg_nsites = trace_libc_callgraph(
+              libc_path, libc_syms_table, nsyms, app_imports, nimports,
+              cg_sites, 2048, &reachable_count);
 
           // Now apply nr-binding where possible.
           // Build a quick lookup of known libc wrapper → syscall nr.
-          struct { const char *name; uint32_t nr; } nr_bindings[] = {
-            {"write", 1}, {"__write", 1}, {"__libc_write", 1},
-            {"__write_nocancel", 1},
-            {"read", 0}, {"__read", 0}, {"__libc_read", 0},
-            {"__read_nocancel", 0},
-            {"openat", 257}, {"openat64", 257}, {"__openat_nocancel", 257},
-            {"open", 257}, {"open64", 257}, {"__open", 257},
-            {"__libc_open", 257}, {"__open_nocancel", 257},
-            {"mmap", 9}, {"mmap64", 9}, {"__mmap", 9},
-            {"mprotect", 10}, {"__mprotect", 10},
-            {"connect", 42}, {"__connect", 42},
-            {"memfd_create", 319},
-            {"prctl", 157}, {"__prctl", 157},
-            {"sendmsg", 46}, {"__sendmsg", 46},
-            {"dup2", 33}, {"close", 3}, {"__close", 3},
-            {"ioctl", 16},
-            {NULL, 0}
-          };
+          struct {
+            const char *name;
+            uint32_t nr;
+          } nr_bindings[] = {{"write", 1},
+                             {"__write", 1},
+                             {"__libc_write", 1},
+                             {"__write_nocancel", 1},
+                             {"read", 0},
+                             {"__read", 0},
+                             {"__libc_read", 0},
+                             {"__read_nocancel", 0},
+                             {"openat", 257},
+                             {"openat64", 257},
+                             {"__openat_nocancel", 257},
+                             {"open", 257},
+                             {"open64", 257},
+                             {"__open", 257},
+                             {"__libc_open", 257},
+                             {"__open_nocancel", 257},
+                             {"mmap", 9},
+                             {"mmap64", 9},
+                             {"__mmap", 9},
+                             {"mprotect", 10},
+                             {"__mprotect", 10},
+                             {"connect", 42},
+                             {"__connect", 42},
+                             {"memfd_create", 319},
+                             {"prctl", 157},
+                             {"__prctl", 157},
+                             {"sendmsg", 46},
+                             {"__sendmsg", 46},
+                             {"dup2", 33},
+                             {"close", 3},
+                             {"__close", 3},
+                             {"ioctl", 16},
+                             {NULL, 0}};
 
           // For each site found by call-graph tracing, check if it falls
           // within a known named wrapper to get nr-binding, else wildcard.
@@ -2368,8 +2610,8 @@ int main(int argc, char **argv) {
 
           // Report the filtering result
           uint64_t all_sites[512];
-          int total_libc_sites = scan_elf_text_for_syscalls(libc_path,
-                                                            all_sites, 512);
+          int total_libc_sites =
+              scan_elf_text_for_syscalls(libc_path, all_sites, 512);
           printf("[Loader] Call-graph libc filtering: %d imports → "
                  "%d reachable functions → %d syscall sites\n",
                  nimports, reachable_count, cg_nsites);
@@ -2387,173 +2629,197 @@ int main(int argc, char **argv) {
         // =================================================================
         // LEGACY FALLBACK: Full-text scan (no .sentinel_imports available)
         // =================================================================
-libc_fallback:
-        printf("[Loader] No .sentinel_imports — using legacy full-text libc scan\n");
+      libc_fallback:
+        printf("[Loader] No .sentinel_imports — using legacy full-text libc "
+               "scan\n");
         {
-        // Whitelist common libc syscall wrappers.
-        // Phase 3: Scan each symbol for the actual 'syscall' instruction
-        // (0f 05) to get the exact offset that BPF will see at rip-2.
-        struct { const char *name; uint32_t nr; } libc_syms[] = {
-          // write(2) family  — hooked as SYS_write (1)
-          {"write", 1}, {"__write", 1}, {"__libc_write", 1},
-          {"__write_nocancel", 1},
-          // read(2) family   — hooked as SYS_read (0)
-          {"read", 0}, {"__read", 0}, {"__libc_read", 0},
-          {"__read_nocancel", 0},
-          // open/openat      — glibc routes open() → SYS_openat (257)
-          {"openat", 257}, {"openat64", 257}, {"__openat_nocancel", 257},
-          {"open", 257}, {"open64", 257}, {"__open", 257},
-          {"__open64", 257}, {"__libc_open", 257}, {"__libc_open64", 257},
-          {"__open_nocancel", 257}, {"__open64_nocancel", 257},
-          // mmap(2) family   — SYS_mmap (9)
-          {"mmap", 9}, {"mmap64", 9}, {"__mmap", 9},
-          // mprotect(2)      — SYS_mprotect (10)
-          {"mprotect", 10}, {"__mprotect", 10},
-          // connect(2)       — SYS_connect (42)
-          {"connect", 42}, {"__connect", 42},
-          // memfd_create(2)  — SYS_memfd_create (319)
-          {"memfd_create", 319},
-          // prctl(2)         — SYS_prctl (157)
-          {"prctl", 157}, {"__prctl", 157},
-          // sendmsg(2)       — SYS_sendmsg (46)
-          {"sendmsg", 46}, {"__sendmsg", 46},
-          // dup2(2)          — SYS_dup2 (33)
-          {"dup2", 33},
-          // close(2)         — SYS_close (3)
-          {"close", 3}, {"__close", 3}, {"__libc_close", 3},
-          {"__close_nocancel", 3},
-          // ioctl(2)         — SYS_ioctl (16)
-          {"ioctl", 16},
-          {NULL, 0}
-        };
-        for (int i = 0; libc_syms[i].name != NULL; i++) {
-          uint64_t sites[8];
-          int nsites = resolve_libc_syscall_sites(libc_path,
-                           libc_syms[i].name, sites, 8);
-          for (int j = 0; j < nsites; j++) {
-            uint64_t val = POLICY_FLAG_CHECK_NR | (uint64_t)libc_syms[i].nr;
-            bpf_map_update_elem(libc_map_fd, &sites[j], &val, BPF_ANY);
-            libc_total++;
+          // Whitelist common libc syscall wrappers.
+          // Phase 3: Scan each symbol for the actual 'syscall' instruction
+          // (0f 05) to get the exact offset that BPF will see at rip-2.
+          struct {
+            const char *name;
+            uint32_t nr;
+          } libc_syms[] = {
+              // write(2) family  — hooked as SYS_write (1)
+              {"write", 1},
+              {"__write", 1},
+              {"__libc_write", 1},
+              {"__write_nocancel", 1},
+              // read(2) family   — hooked as SYS_read (0)
+              {"read", 0},
+              {"__read", 0},
+              {"__libc_read", 0},
+              {"__read_nocancel", 0},
+              // open/openat      — glibc routes open() → SYS_openat (257)
+              {"openat", 257},
+              {"openat64", 257},
+              {"__openat_nocancel", 257},
+              {"open", 257},
+              {"open64", 257},
+              {"__open", 257},
+              {"__open64", 257},
+              {"__libc_open", 257},
+              {"__libc_open64", 257},
+              {"__open_nocancel", 257},
+              {"__open64_nocancel", 257},
+              // mmap(2) family   — SYS_mmap (9)
+              {"mmap", 9},
+              {"mmap64", 9},
+              {"__mmap", 9},
+              // mprotect(2)      — SYS_mprotect (10)
+              {"mprotect", 10},
+              {"__mprotect", 10},
+              // connect(2)       — SYS_connect (42)
+              {"connect", 42},
+              {"__connect", 42},
+              // memfd_create(2)  — SYS_memfd_create (319)
+              {"memfd_create", 319},
+              // prctl(2)         — SYS_prctl (157)
+              {"prctl", 157},
+              {"__prctl", 157},
+              // sendmsg(2)       — SYS_sendmsg (46)
+              {"sendmsg", 46},
+              {"__sendmsg", 46},
+              // dup2(2)          — SYS_dup2 (33)
+              {"dup2", 33},
+              // close(2)         — SYS_close (3)
+              {"close", 3},
+              {"__close", 3},
+              {"__libc_close", 3},
+              {"__close_nocancel", 3},
+              // ioctl(2)         — SYS_ioctl (16)
+              {"ioctl", 16},
+              {NULL, 0}};
+          for (int i = 0; libc_syms[i].name != NULL; i++) {
+            uint64_t sites[8];
+            int nsites = resolve_libc_syscall_sites(
+                libc_path, libc_syms[i].name, sites, 8);
+            for (int j = 0; j < nsites; j++) {
+              uint64_t val = POLICY_FLAG_CHECK_NR | (uint64_t)libc_syms[i].nr;
+              bpf_map_update_elem(libc_map_fd, &sites[j], &val, BPF_ANY);
+              libc_total++;
+            }
           }
-        }
 
-        // Glibc ≥ 2.34 cancellation trampoline
-        const char *cancel_syms[] = {
-            "__syscall_cancel_arch", "__syscall_cancel",
-            "__internal_syscall_cancel", NULL};
-        for (int i = 0; cancel_syms[i] != NULL; i++) {
-          uint64_t sites[4];
-          int nsites = resolve_libc_syscall_sites(libc_path,
-                           cancel_syms[i], sites, 4);
-          for (int j = 0; j < nsites; j++) {
-            uint64_t val = 1;
-            bpf_map_update_elem(libc_map_fd, &sites[j], &val, BPF_ANY);
-            libc_total++;
+          // Glibc ≥ 2.34 cancellation trampoline
+          const char *cancel_syms[] = {"__syscall_cancel_arch",
+                                       "__syscall_cancel",
+                                       "__internal_syscall_cancel", NULL};
+          for (int i = 0; cancel_syms[i] != NULL; i++) {
+            uint64_t sites[4];
+            int nsites =
+                resolve_libc_syscall_sites(libc_path, cancel_syms[i], sites, 4);
+            for (int j = 0; j < nsites; j++) {
+              uint64_t val = 1;
+              bpf_map_update_elem(libc_map_fd, &sites[j], &val, BPF_ANY);
+              libc_total++;
+            }
           }
-        }
 
-        // Full text scan fallback
-        {
-          uint64_t all_sites[512];
-          int nall = scan_elf_text_for_syscalls(libc_path, all_sites, 512);
-          int fallback_added = 0;
-          for (int j = 0; j < nall; j++) {
-            uint64_t val = 1;
-            if (bpf_map_update_elem(libc_map_fd, &all_sites[j], &val,
-                                    BPF_NOEXIST) == 0)
-              fallback_added++;
+          // Full text scan fallback
+          {
+            uint64_t all_sites[512];
+            int nall = scan_elf_text_for_syscalls(libc_path, all_sites, 512);
+            int fallback_added = 0;
+            for (int j = 0; j < nall; j++) {
+              uint64_t val = 1;
+              if (bpf_map_update_elem(libc_map_fd, &all_sites[j], &val,
+                                      BPF_NOEXIST) == 0)
+                fallback_added++;
+            }
+            libc_total += fallback_added;
+            printf("[Loader] Libc full-text scan: %d total sites, %d new "
+                   "wildcard entries added.\n",
+                   nall, fallback_added);
           }
-          libc_total += fallback_added;
-          printf("[Loader] Libc full-text scan: %d total sites, %d new "
-                 "wildcard entries added.\n", nall, fallback_added);
-        }
         } // end legacy fallback block
 
         printf("[Loader] Whitelisted %d libc syscall sites total.\n",
                libc_total);
 
         // --- 10b. Whitelist dynamic linker (ld.so) syscall sites ---
-libc_ld_whitelist:
-        {
-          unsigned long ld_base = 0;
-          char ld_path[512] = {0};
-          // Find ld.so base from /proc maps
-          char maps_path[64], maps_line[512];
-          snprintf(maps_path, sizeof(maps_path), "/proc/%d/maps", g_child);
-          FILE *mfp = fopen(maps_path, "r");
-          if (mfp) {
-            while (fgets(maps_line, sizeof(maps_line), mfp)) {
-              if (strstr(maps_line, "ld-linux") || strstr(maps_line, "ld-musl")) {
-                if (ld_base == 0)
-                  sscanf(maps_line, "%lx", &ld_base);
-                break;
-              }
+      libc_ld_whitelist: {
+        unsigned long ld_base = 0;
+        char ld_path[512] = {0};
+        // Find ld.so base from /proc maps
+        char maps_path[64], maps_line[512];
+        snprintf(maps_path, sizeof(maps_path), "/proc/%d/maps", g_child);
+        FILE *mfp = fopen(maps_path, "r");
+        if (mfp) {
+          while (fgets(maps_line, sizeof(maps_line), mfp)) {
+            if (strstr(maps_line, "ld-linux") || strstr(maps_line, "ld-musl")) {
+              if (ld_base == 0)
+                sscanf(maps_line, "%lx", &ld_base);
+              break;
             }
-            fclose(mfp);
           }
-          if (ld_base != 0 &&
-              find_module_path(g_child, "ld-linux", ld_path,
-                               sizeof(ld_path)) == 0) {
-            printf("[Loader] ld.so path: %s (base=0x%lx)\n",
-                   ld_path, ld_base);
-            // Scan ld.so for syscall sites (ELF-relative offsets)
-            uint64_t sites[256];
-            int nsites = scan_elf_text_for_syscalls(ld_path, sites, 256);
-            int ld_added = 0;
-            for (int j = 0; j < nsites; j++) {
-              // Convert ELF offset → runtime addr → libc-relative offset
-              // Runtime addr = ld_base + elf_offset (ld.so is PIE, load_base=0)
-              // Libc-relative = runtime_addr - libc_base
-              uint64_t runtime_addr = ld_base + sites[j];
-              uint64_t libc_rel_offset = runtime_addr - libc_base;
-              uint64_t val = 1; // Wildcard: trusted
-              if (bpf_map_update_elem(libc_map_fd, &libc_rel_offset,
-                                      &val, BPF_NOEXIST) == 0)
-                ld_added++;
-            }
-            printf("[Loader] Whitelisted %d ld.so syscall sites "
-                   "(as libc-relative offsets).\n", ld_added);
+          fclose(mfp);
+        }
+        if (ld_base != 0 && find_module_path(g_child, "ld-linux", ld_path,
+                                             sizeof(ld_path)) == 0) {
+          printf("[Loader] ld.so path: %s (base=0x%lx)\n", ld_path, ld_base);
+          // Scan ld.so for syscall sites (ELF-relative offsets)
+          uint64_t sites[256];
+          int nsites = scan_elf_text_for_syscalls(ld_path, sites, 256);
+          int ld_added = 0;
+          for (int j = 0; j < nsites; j++) {
+            // Convert ELF offset → runtime addr → libc-relative offset
+            // Runtime addr = ld_base + elf_offset (ld.so is PIE, load_base=0)
+            // Libc-relative = runtime_addr - libc_base
+            uint64_t runtime_addr = ld_base + sites[j];
+            uint64_t libc_rel_offset = runtime_addr - libc_base;
+            uint64_t val = 1; // Wildcard: trusted
+            if (bpf_map_update_elem(libc_map_fd, &libc_rel_offset, &val,
+                                    BPF_NOEXIST) == 0)
+              ld_added++;
+          }
+          printf("[Loader] Whitelisted %d ld.so syscall sites "
+                 "(as libc-relative offsets).\n",
+                 ld_added);
 
-            // Add ld-linux VMA blocks to LPM trie as MODULE_LIBC with
-            // base_addr = libc_base. This is critical: the ld.so syscall
-            // sites are stored as libc-relative offsets, so the BPF enforcer
-            // must compute  offset = RIP - libc_base  (not RIP - ld_base).
-            // We can't use populate_vma_for_module() because it would set
-            // base_addr = ld_linux_base, producing wrong offsets.
-            {
-              char ld_mp[64], ld_ml[512];
-              snprintf(ld_mp, sizeof(ld_mp), "/proc/%d/maps", g_child);
-              FILE *ld_fp = fopen(ld_mp, "r");
-              int ld_blocks = 0;
-              if (ld_fp) {
-                unsigned long ld_min = ULONG_MAX, ld_max = 0;
-                while (fgets(ld_ml, sizeof(ld_ml), ld_fp)) {
-                  if (!strstr(ld_ml, "ld-linux") && !strstr(ld_ml, "ld-musl"))
-                    continue;
-                  unsigned long s, e;
-                  sscanf(ld_ml, "%lx-%lx", &s, &e);
-                  if (s < ld_min) ld_min = s;
-                  if (e > ld_max) ld_max = e;
-                }
-                fclose(ld_fp);
-                if (ld_min != ULONG_MAX) {
-                  unsigned long blk = ld_min & ~(VMA_BLOCK_SIZE - 1);
-                  for (unsigned long a = blk; a < ld_max; a += VMA_BLOCK_SIZE) {
-                    struct vma_key k = {.prefixlen = VMA_BLOCK_PREFIX,
-                                        .addr = __builtin_bswap64(a)};
-                    struct vma_value v = {.module_id = MODULE_LIBC,
-                                          .base_addr = libc_base};
-                    bpf_map_update_elem(vma_fd, &k, &v, BPF_ANY);
-                    ld_blocks++;
-                  }
+          // Add ld-linux VMA blocks to LPM trie as MODULE_LIBC with
+          // base_addr = libc_base. This is critical: the ld.so syscall
+          // sites are stored as libc-relative offsets, so the BPF enforcer
+          // must compute  offset = RIP - libc_base  (not RIP - ld_base).
+          // We can't use populate_vma_for_module() because it would set
+          // base_addr = ld_linux_base, producing wrong offsets.
+          {
+            char ld_mp[64], ld_ml[512];
+            snprintf(ld_mp, sizeof(ld_mp), "/proc/%d/maps", g_child);
+            FILE *ld_fp = fopen(ld_mp, "r");
+            int ld_blocks = 0;
+            if (ld_fp) {
+              unsigned long ld_min = ULONG_MAX, ld_max = 0;
+              while (fgets(ld_ml, sizeof(ld_ml), ld_fp)) {
+                if (!strstr(ld_ml, "ld-linux") && !strstr(ld_ml, "ld-musl"))
+                  continue;
+                unsigned long s, e;
+                sscanf(ld_ml, "%lx-%lx", &s, &e);
+                if (s < ld_min)
+                  ld_min = s;
+                if (e > ld_max)
+                  ld_max = e;
+              }
+              fclose(ld_fp);
+              if (ld_min != ULONG_MAX) {
+                unsigned long blk = ld_min & ~(VMA_BLOCK_SIZE - 1);
+                for (unsigned long a = blk; a < ld_max; a += VMA_BLOCK_SIZE) {
+                  struct vma_key k = {.prefixlen = VMA_BLOCK_PREFIX,
+                                      .addr = __builtin_bswap64(a)};
+                  struct vma_value v = {.module_id = MODULE_LIBC,
+                                        .base_addr = libc_base};
+                  bpf_map_update_elem(vma_fd, &k, &v, BPF_ANY);
+                  ld_blocks++;
                 }
               }
-              if (ld_blocks > 0)
-                printf("[Loader] ld-linux VMA: %d LPM blocks "
-                       "(MODULE_LIBC, base=0x%lx)\n", ld_blocks, libc_base);
             }
+            if (ld_blocks > 0)
+              printf("[Loader] ld-linux VMA: %d LPM blocks "
+                     "(MODULE_LIBC, base=0x%lx)\n",
+                     ld_blocks, libc_base);
           }
         }
+      }
 
       } else {
         fprintf(stderr, "[Warn] Could not find libc path in proc maps.\n");
@@ -2624,16 +2890,17 @@ libc_ld_whitelist:
       // For each discovered library, create policy + VMA entries
       for (int i = 0; i < n_libs && next_mod_id < 64; i++) {
         const char *lib_path = seen_libs[i];
-        // Extract short name for VMA matching (e.g., "libpthread" from full path)
+        // Extract short name for VMA matching (e.g., "libpthread" from full
+        // path)
         const char *short_name = strrchr(lib_path, '/');
         short_name = short_name ? short_name + 1 : lib_path;
 
         // Create inner policy map for this library
         char map_name[16];
         snprintf(map_name, sizeof(map_name), "lib_pol_%u", next_mod_id);
-        int lib_map_fd = bpf_map_create(BPF_MAP_TYPE_HASH, map_name,
-                                        sizeof(uint64_t), sizeof(uint64_t),
-                                        4096, NULL);
+        int lib_map_fd =
+            bpf_map_create(BPF_MAP_TYPE_HASH, map_name, sizeof(uint64_t),
+                           sizeof(uint64_t), 4096, NULL);
         if (lib_map_fd < 0) {
           fprintf(stderr, "[Warn] Failed to create policy map for %s: %s\n",
                   short_name, strerror(errno));
@@ -2642,7 +2909,8 @@ libc_ld_whitelist:
 
         // Register in policy_registry
         uint32_t mod_id = next_mod_id;
-        if (bpf_map_update_elem(registry_fd, &mod_id, &lib_map_fd, BPF_ANY) != 0) {
+        if (bpf_map_update_elem(registry_fd, &mod_id, &lib_map_fd, BPF_ANY) !=
+            0) {
           fprintf(stderr, "[Warn] Failed to register %s (mod=%u): %s\n",
                   short_name, mod_id, strerror(errno));
           close(lib_map_fd);
@@ -2661,8 +2929,8 @@ libc_ld_whitelist:
         int nsites = 0;
         int reachable = 0;
         if (app_imports && nimports > 0) {
-          nsites = trace_lib_callgraph(lib_path, app_imports, nimports,
-                                       sites, 512, &reachable);
+          nsites = trace_lib_callgraph(lib_path, app_imports, nimports, sites,
+                                       512, &reachable);
         }
         // Fallback: full-text scan if no imports or BFS found nothing
         if (nsites == 0)
@@ -2681,14 +2949,16 @@ libc_ld_whitelist:
           uint64_t tmp[512];
           total_sites = scan_elf_text_for_syscalls(lib_path, tmp, 512);
         }
-        float reduction = total_sites > 0
-            ? (1.0f - (float)added / (float)total_sites) * 100.0f
-            : 0.0f;
+        float reduction =
+            total_sites > 0
+                ? (1.0f - (float)added / (float)total_sites) * 100.0f
+                : 0.0f;
 
-        printf("[Loader] Library '%s' (mod=%u): base=0x%lx, %d VMA blocks, "
-               "%d/%d syscall sites via %s (%.1f%% attack surface reduction).\n",
-               short_name, mod_id, lib_base, lib_blocks, added, total_sites,
-               reachable > 0 ? "call-graph" : "full-scan", reduction);
+        printf(
+            "[Loader] Library '%s' (mod=%u): base=0x%lx, %d VMA blocks, "
+            "%d/%d syscall sites via %s (%.1f%% attack surface reduction).\n",
+            short_name, mod_id, lib_base, lib_blocks, added, total_sites,
+            reachable > 0 ? "call-graph" : "full-scan", reduction);
 
         // Track for dlopen() change detection
         register_watched_lib(lib_path, mod_id);
@@ -2746,9 +3016,11 @@ libc_ld_whitelist:
           GElf_Shdr shdr;
           while ((scn = elf_nextscn(bin_elf, scn)) != NULL) {
             gelf_getshdr(scn, &shdr);
-            if (shdr.sh_type != SHT_SYMTAB) continue;
+            if (shdr.sh_type != SHT_SYMTAB)
+              continue;
             Elf_Data *data = elf_getdata(scn, NULL);
-            if (!data) continue;
+            if (!data)
+              continue;
             int nsyms = shdr.sh_size / shdr.sh_entsize;
             for (int j = 0; j < nsyms; j++) {
               GElf_Sym sym;
@@ -2759,12 +3031,14 @@ libc_ld_whitelist:
                 break;
               }
             }
-            if (func_size) break;
+            if (func_size)
+              break;
           }
         }
 
         // Fallback: use reasonable default if size not found
-        if (func_size == 0) func_size = 4096;
+        if (func_size == 0)
+          func_size = 4096;
 
         struct cfi_range range = {.start = func_offset,
                                   .end = func_offset + func_size};
@@ -2775,8 +3049,10 @@ libc_ld_whitelist:
         }
       }
 
-      if (bin_elf) elf_end(bin_elf);
-      if (bin_fd >= 0) close(bin_fd);
+      if (bin_elf)
+        elf_end(bin_elf);
+      if (bin_fd >= 0)
+        close(bin_fd);
     } else {
       // Fallback: hardcoded CFI (legacy)
       setup_cfi_policy(g_skel, binary, policy_offsets, policy_count,
@@ -2808,44 +3084,44 @@ libc_ld_whitelist:
   if (g_system_wide) {
     // Allow a baseline set of safe syscalls for ALL processes
     static const uint32_t safe_nrs[] = {
-      0,   // read
-      1,   // write
-      3,   // close
-      5,   // fstat
-      8,   // lseek
-      9,   // mmap
-      10,  // mprotect
-      11,  // munmap
-      12,  // brk
-      13,  // rt_sigaction
-      14,  // rt_sigprocmask
-      15,  // rt_sigreturn
-      21,  // access
-      24,  // sched_yield
-      35,  // nanosleep
-      39,  // getpid
-      60,  // exit
-      63,  // uname
-      72,  // fcntl
-      79,  // getcwd
-      89,  // readlink
-      96,  // gettimeofday
-      102, // getuid
-      104, // getgid
-      107, // geteuid
-      108, // getegid
-      110, // getppid
-      158, // arch_prctl
-      186, // gettid
-      202, // futex
-      218, // set_tid_address
-      228, // clock_gettime
-      231, // exit_group
-      257, // openat
-      262, // newfstatat
-      302, // prlimit64
-      318, // getrandom
-      334, // rseq
+        0,   // read
+        1,   // write
+        3,   // close
+        5,   // fstat
+        8,   // lseek
+        9,   // mmap
+        10,  // mprotect
+        11,  // munmap
+        12,  // brk
+        13,  // rt_sigaction
+        14,  // rt_sigprocmask
+        15,  // rt_sigreturn
+        21,  // access
+        24,  // sched_yield
+        35,  // nanosleep
+        39,  // getpid
+        60,  // exit
+        63,  // uname
+        72,  // fcntl
+        79,  // getcwd
+        89,  // readlink
+        96,  // gettimeofday
+        102, // getuid
+        104, // getgid
+        107, // geteuid
+        108, // getegid
+        110, // getppid
+        158, // arch_prctl
+        186, // gettid
+        202, // futex
+        218, // set_tid_address
+        228, // clock_gettime
+        231, // exit_group
+        257, // openat
+        262, // newfstatat
+        302, // prlimit64
+        318, // getrandom
+        334, // rseq
     };
     int fb_fd = bpf_map__fd(g_skel->maps.fallback_policy);
     int fb_count = 0;
@@ -2889,10 +3165,12 @@ libc_ld_whitelist:
             if (bpf_map_update_elem(main_map_fd, &off, &val, BPF_ANY) == 0)
               reloaded++;
           }
-          printf("[Loader] Hot-reload complete: %d/%d policy entries updated.\n",
-                 reloaded, reload_count);
+          printf(
+              "[Loader] Hot-reload complete: %d/%d policy entries updated.\n",
+              reloaded, reload_count);
         } else {
-          fprintf(stderr, "[WARN] Hot-reload failed to parse policy (count=%d)\n",
+          fprintf(stderr,
+                  "[WARN] Hot-reload failed to parse policy (count=%d)\n",
                   reload_count);
         }
       }
@@ -2900,8 +3178,7 @@ libc_ld_whitelist:
       int wret = waitpid(g_child, &status, WNOHANG);
       if (wret > 0) {
         if (WIFEXITED(status)) {
-          printf("[Loader] Child exited with code %d.\n",
-                 WEXITSTATUS(status));
+          printf("[Loader] Child exited with code %d.\n", WEXITSTATUS(status));
           break;
         }
         if (WIFSIGNALED(status)) {
@@ -2916,9 +3193,9 @@ libc_ld_whitelist:
         static int dlopen_poll_counter = 0;
         if (++dlopen_poll_counter >= (DLOPEN_SCAN_INTERVAL_MS / 100)) {
           dlopen_poll_counter = 0;
-          int new_libs = dlopen_scan(g_child, vma_fd, registry_fd,
-                                     &dlopen_next_mod_id, bin_name, libc_base,
-                                     app_imports, nimports);
+          int new_libs =
+              dlopen_scan(g_child, vma_fd, registry_fd, &dlopen_next_mod_id,
+                          bin_name, libc_base, app_imports, nimports);
           if (new_libs > 0)
             printf("[Loader] dlopen watch: %d new libraries discovered.\n",
                    new_libs);
@@ -2959,8 +3236,8 @@ libc_ld_whitelist:
         key = next_key;
       }
       fclose(pf);
-      printf("[Loader] Learning mode: wrote %d entries to %s\n",
-             entries, policy_path);
+      printf("[Loader] Learning mode: wrote %d entries to %s\n", entries,
+             policy_path);
     } else {
       fprintf(stderr, "[WARN] Could not create learned policy file: %s\n",
               strerror(errno));

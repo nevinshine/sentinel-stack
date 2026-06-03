@@ -4,12 +4,12 @@ void llvm_telos_intent_start(void) asm("llvm.telos.intent.start");
 void llvm_telos_intent_end(void) asm("llvm.telos.intent.end");
 
 // Mock definitions for x86 linker
-void llvm_riscv_tca_cap_setintent(void* func, long intent) asm("llvm.riscv.tca.cap.setintent");
-void llvm_riscv_tca_cap_setintent(void* func, long intent) {}
+void llvm_riscv_tca_cap_setintent(void *func, long intent) asm(
+    "llvm.riscv.tca.cap.setintent");
+void llvm_riscv_tca_cap_setintent(void *func, long intent) {}
 
 void llvm_riscv_tca_cap_clear(void) asm("llvm.riscv.tca.cap.clear");
 void llvm_riscv_tca_cap_clear(void) {}
-
 
 void safe_logger() {
   const char *msg = "SAFE\n";

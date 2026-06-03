@@ -1,6 +1,6 @@
 // sentinel.bpf.c — Sentinel-CC eBPF Enforcer
-// Multi-syscall enforcement with audit ring buffer, Call-Stack CFI, and fork tracking
-// Hooks: write, read, openat, execve, mmap, mprotect, connect, ptrace,
+// Multi-syscall enforcement with audit ring buffer, Call-Stack CFI, and fork
+// tracking Hooks: write, read, openat, execve, mmap, mprotect, connect, ptrace,
 //        memfd_create, process_vm_writev, prctl, sendmsg, dup2, close,
 //        ioctl, seccomp
 // Fork tracking: sched_process_fork auto-enrolls child processes
@@ -29,8 +29,8 @@
 #endif
 
 // --- Global config (set by loader) ---
-volatile const __u32 audit_mode = 0; // 0 = fast path, 1 = verbose audit
-volatile const __u32 fexit_mode = 0; // 0 = disabled, 1 = post-syscall audit
+volatile const __u32 audit_mode = 0;   // 0 = fast path, 1 = verbose audit
+volatile const __u32 fexit_mode = 0;   // 0 = disabled, 1 = post-syscall audit
 volatile const __u32 enforce_mode = 0; // 0 = KILL, 1 = PERMISSIVE, 2 = TERM
 volatile const __u32 learn_mode = 0;   // 0 = enforce, 1 = learning (record all)
 volatile const __u32 shadow_cfi = 0;   // 0 = disabled, 1 = shadow stack CFI
@@ -144,9 +144,8 @@ volatile const __u32 cgroup_filter = 0;
 
 // --- Helpers ---
 
-static __always_inline void emit_audit(u32 tgid, u32 tid, u64 rip,
-                                       u64 offset, u32 mod_id,
-                                       u32 syscall_nr, u8 action) {
+static __always_inline void emit_audit(u32 tgid, u32 tid, u64 rip, u64 offset,
+                                       u32 mod_id, u32 syscall_nr, u8 action) {
   struct audit_event *evt;
   evt = bpf_ringbuf_reserve(&audit_ringbuf, sizeof(*evt), 0);
   if (!evt)
@@ -163,9 +162,9 @@ static __always_inline void emit_audit(u32 tgid, u32 tid, u64 rip,
 }
 
 // Deny action: kill, log-only (permissive), or terminate
-static __always_inline void deny_action(u32 tgid, u32 tid, u64 rip,
-                                        u64 offset, u32 mod_id,
-                                        u32 syscall_nr, u8 event_type) {
+static __always_inline void deny_action(u32 tgid, u32 tid, u64 rip, u64 offset,
+                                        u32 mod_id, u32 syscall_nr,
+                                        u8 event_type) {
   if (enforce_mode == ENFORCE_PERMISSIVE) {
     // Permissive mode: log the violation but do NOT kill
     emit_audit(tgid, tid, rip, offset, mod_id, syscall_nr, EVENT_PERMISSIVE);
@@ -177,7 +176,7 @@ static __always_inline void deny_action(u32 tgid, u32 tid, u64 rip,
   if (enforce_mode == ENFORCE_TERM)
     bpf_send_signal(15); // SIGTERM — graceful
   else
-    bpf_send_signal(9);  // SIGKILL — fail-closed default
+    bpf_send_signal(9); // SIGKILL — fail-closed default
 }
 
 // Core enforcement logic — shared by all syscall hooks
@@ -265,16 +264,16 @@ static __always_inline int sentinel_check(void *ctx, u32 syscall_nr) {
     bpf_printk("Sentinel [BLOCK] TID=%d SYS=%d No Policy Mod=%d", tid,
                syscall_nr, mod->module_id);
     deny_action(tgid, tid, syscall_site, offset, mod->module_id, syscall_nr,
-               EVENT_BLOCK);
+                EVENT_BLOCK);
     return 0;
   }
 
   u64 *rule = bpf_map_lookup_elem(policy_map, &offset);
   if (!rule) {
-    bpf_printk("Sentinel [BLOCK] TID=%d SYS=%d Vio Offset 0x%lx (Mod %d)",
-               tid, syscall_nr, offset, mod->module_id);
+    bpf_printk("Sentinel [BLOCK] TID=%d SYS=%d Vio Offset 0x%lx (Mod %d)", tid,
+               syscall_nr, offset, mod->module_id);
     deny_action(tgid, tid, syscall_site, offset, mod->module_id, syscall_nr,
-               EVENT_BLOCK);
+                EVENT_BLOCK);
     return 0;
   }
 
@@ -285,8 +284,8 @@ static __always_inline int sentinel_check(void *ctx, u32 syscall_nr) {
     // If the syscall NR exceeds the limit, block it.
     u32 thread_max_nr = *thread_override;
     if (syscall_nr > thread_max_nr) {
-      bpf_printk("Sentinel [BLOCK] TID=%d SYS=%d exceeds thread limit %d",
-                 tid, syscall_nr, thread_max_nr);
+      bpf_printk("Sentinel [BLOCK] TID=%d SYS=%d exceeds thread limit %d", tid,
+                 syscall_nr, thread_max_nr);
       deny_action(tgid, tid, syscall_site, offset, mod->module_id, syscall_nr,
                   EVENT_BLOCK);
       return 0;
@@ -298,8 +297,8 @@ static __always_inline int sentinel_check(void *ctx, u32 syscall_nr) {
   if (policy_val & POLICY_FLAG_CHECK_NR) {
     u32 expected_nr = (u32)(policy_val & 0xFFFFFFFF);
     if (expected_nr != syscall_nr) {
-      bpf_printk("Sentinel [NR-MISMATCH] TID=%d Got %d Want %d Off 0x%lx",
-                 tid, syscall_nr, expected_nr, offset);
+      bpf_printk("Sentinel [NR-MISMATCH] TID=%d Got %d Want %d Off 0x%lx", tid,
+                 syscall_nr, expected_nr, offset);
       deny_action(tgid, tid, syscall_site, offset, mod->module_id, syscall_nr,
                   EVENT_NR_MISMATCH);
       return 0;
@@ -317,32 +316,46 @@ static __always_inline int sentinel_check(void *ctx, u32 syscall_nr) {
       // Validate each return address is within a known VMA
       int valid = 1;
       if (nframes > 1) {
-        struct vma_key fk1 = {.prefixlen = 64, .addr = __builtin_bswap64(stack[1])};
-        if (!bpf_map_lookup_elem(&vma_map, &fk1)) valid = 0;
+        struct vma_key fk1 = {.prefixlen = 64,
+                              .addr = __builtin_bswap64(stack[1])};
+        if (!bpf_map_lookup_elem(&vma_map, &fk1))
+          valid = 0;
       }
       if (valid && nframes > 2) {
-        struct vma_key fk2 = {.prefixlen = 64, .addr = __builtin_bswap64(stack[2])};
-        if (!bpf_map_lookup_elem(&vma_map, &fk2)) valid = 0;
+        struct vma_key fk2 = {.prefixlen = 64,
+                              .addr = __builtin_bswap64(stack[2])};
+        if (!bpf_map_lookup_elem(&vma_map, &fk2))
+          valid = 0;
       }
       if (valid && nframes > 3) {
-        struct vma_key fk3 = {.prefixlen = 64, .addr = __builtin_bswap64(stack[3])};
-        if (!bpf_map_lookup_elem(&vma_map, &fk3)) valid = 0;
+        struct vma_key fk3 = {.prefixlen = 64,
+                              .addr = __builtin_bswap64(stack[3])};
+        if (!bpf_map_lookup_elem(&vma_map, &fk3))
+          valid = 0;
       }
       if (valid && nframes > 4) {
-        struct vma_key fk4 = {.prefixlen = 64, .addr = __builtin_bswap64(stack[4])};
-        if (!bpf_map_lookup_elem(&vma_map, &fk4)) valid = 0;
+        struct vma_key fk4 = {.prefixlen = 64,
+                              .addr = __builtin_bswap64(stack[4])};
+        if (!bpf_map_lookup_elem(&vma_map, &fk4))
+          valid = 0;
       }
       if (valid && nframes > 5) {
-        struct vma_key fk5 = {.prefixlen = 64, .addr = __builtin_bswap64(stack[5])};
-        if (!bpf_map_lookup_elem(&vma_map, &fk5)) valid = 0;
+        struct vma_key fk5 = {.prefixlen = 64,
+                              .addr = __builtin_bswap64(stack[5])};
+        if (!bpf_map_lookup_elem(&vma_map, &fk5))
+          valid = 0;
       }
       if (valid && nframes > 6) {
-        struct vma_key fk6 = {.prefixlen = 64, .addr = __builtin_bswap64(stack[6])};
-        if (!bpf_map_lookup_elem(&vma_map, &fk6)) valid = 0;
+        struct vma_key fk6 = {.prefixlen = 64,
+                              .addr = __builtin_bswap64(stack[6])};
+        if (!bpf_map_lookup_elem(&vma_map, &fk6))
+          valid = 0;
       }
       if (valid && nframes > 7) {
-        struct vma_key fk7 = {.prefixlen = 64, .addr = __builtin_bswap64(stack[7])};
-        if (!bpf_map_lookup_elem(&vma_map, &fk7)) valid = 0;
+        struct vma_key fk7 = {.prefixlen = 64,
+                              .addr = __builtin_bswap64(stack[7])};
+        if (!bpf_map_lookup_elem(&vma_map, &fk7))
+          valid = 0;
       }
       if (!valid) {
         deny_action(tgid, tid, syscall_site, offset, mod->module_id, syscall_nr,
@@ -399,39 +412,25 @@ static __always_inline int sentinel_check(void *ctx, u32 syscall_nr) {
 // --- Per-Syscall fentry Hooks ---
 
 SEC("fentry/__x64_sys_write")
-int BPF_PROG(sentinel_write_check) {
-  return sentinel_check(ctx, 1);
-}
+int BPF_PROG(sentinel_write_check) { return sentinel_check(ctx, 1); }
 
 SEC("fentry/__x64_sys_read")
-int BPF_PROG(sentinel_read_check) {
-  return sentinel_check(ctx, 0);
-}
+int BPF_PROG(sentinel_read_check) { return sentinel_check(ctx, 0); }
 
 SEC("fentry/__x64_sys_openat")
-int BPF_PROG(sentinel_openat_check) {
-  return sentinel_check(ctx, 257);
-}
+int BPF_PROG(sentinel_openat_check) { return sentinel_check(ctx, 257); }
 
 SEC("fentry/__x64_sys_execve")
-int BPF_PROG(sentinel_execve_check) {
-  return sentinel_check(ctx, 59);
-}
+int BPF_PROG(sentinel_execve_check) { return sentinel_check(ctx, 59); }
 
 SEC("fentry/__x64_sys_mmap")
-int BPF_PROG(sentinel_mmap_check) {
-  return sentinel_check(ctx, 9);
-}
+int BPF_PROG(sentinel_mmap_check) { return sentinel_check(ctx, 9); }
 
 SEC("fentry/__x64_sys_mprotect")
-int BPF_PROG(sentinel_mprotect_check) {
-  return sentinel_check(ctx, 10);
-}
+int BPF_PROG(sentinel_mprotect_check) { return sentinel_check(ctx, 10); }
 
 SEC("fentry/__x64_sys_connect")
-int BPF_PROG(sentinel_connect_check) {
-  return sentinel_check(ctx, 42);
-}
+int BPF_PROG(sentinel_connect_check) { return sentinel_check(ctx, 42); }
 
 SEC("fentry/__x64_sys_ptrace")
 int BPF_PROG(sentinel_ptrace_check) {
@@ -444,7 +443,8 @@ int BPF_PROG(sentinel_ptrace_check) {
   if (!target)
     return 0;
   u32 tid = (u32)pid_tgid;
-  bpf_printk("Sentinel [BLOCK] TID=%d ptrace denied for monitored process", tid);
+  bpf_printk("Sentinel [BLOCK] TID=%d ptrace denied for monitored process",
+             tid);
   deny_action(tgid, tid, 0, 0, 0, 101, EVENT_BLOCK);
   return 0;
 }
@@ -452,9 +452,7 @@ int BPF_PROG(sentinel_ptrace_check) {
 // --- Additional high-risk syscall hooks ---
 
 SEC("fentry/__x64_sys_memfd_create")
-int BPF_PROG(sentinel_memfd_create_check) {
-  return sentinel_check(ctx, 319);
-}
+int BPF_PROG(sentinel_memfd_create_check) { return sentinel_check(ctx, 319); }
 
 SEC("fentry/__x64_sys_process_vm_writev")
 int BPF_PROG(sentinel_process_vm_writev_check) {
@@ -472,29 +470,19 @@ int BPF_PROG(sentinel_process_vm_writev_check) {
 }
 
 SEC("fentry/__x64_sys_prctl")
-int BPF_PROG(sentinel_prctl_check) {
-  return sentinel_check(ctx, 157);
-}
+int BPF_PROG(sentinel_prctl_check) { return sentinel_check(ctx, 157); }
 
 SEC("fentry/__x64_sys_sendmsg")
-int BPF_PROG(sentinel_sendmsg_check) {
-  return sentinel_check(ctx, 46);
-}
+int BPF_PROG(sentinel_sendmsg_check) { return sentinel_check(ctx, 46); }
 
 SEC("fentry/__x64_sys_dup2")
-int BPF_PROG(sentinel_dup2_check) {
-  return sentinel_check(ctx, 33);
-}
+int BPF_PROG(sentinel_dup2_check) { return sentinel_check(ctx, 33); }
 
 SEC("fentry/__x64_sys_close")
-int BPF_PROG(sentinel_close_check) {
-  return sentinel_check(ctx, 3);
-}
+int BPF_PROG(sentinel_close_check) { return sentinel_check(ctx, 3); }
 
 SEC("fentry/__x64_sys_ioctl")
-int BPF_PROG(sentinel_ioctl_check) {
-  return sentinel_check(ctx, 16);
-}
+int BPF_PROG(sentinel_ioctl_check) { return sentinel_check(ctx, 16); }
 
 SEC("fentry/__x64_sys_seccomp")
 int BPF_PROG(sentinel_seccomp_check) {
@@ -507,7 +495,8 @@ int BPF_PROG(sentinel_seccomp_check) {
   if (!target)
     return 0;
   u32 tid = (u32)pid_tgid;
-  bpf_printk("Sentinel [BLOCK] TID=%d seccomp denied for monitored process", tid);
+  bpf_printk("Sentinel [BLOCK] TID=%d seccomp denied for monitored process",
+             tid);
   deny_action(tgid, tid, 0, 0, 0, 317, EVENT_BLOCK);
   return 0;
 }
@@ -538,7 +527,8 @@ int BPF_PROG(sentinel_unshare_check) {
   if (!target)
     return 0;
   u32 tid = (u32)pid_tgid;
-  bpf_printk("Sentinel [KOBJ] TID=%d unshare() denied for monitored process", tid);
+  bpf_printk("Sentinel [KOBJ] TID=%d unshare() denied for monitored process",
+             tid);
   deny_action(tgid, tid, 0, 0, 0, 272, EVENT_KOBJ_DENY);
   return 0;
 }
@@ -551,7 +541,8 @@ int BPF_PROG(sentinel_setns_check) {
   if (!target)
     return 0;
   u32 tid = (u32)pid_tgid;
-  bpf_printk("Sentinel [KOBJ] TID=%d setns() denied for monitored process", tid);
+  bpf_printk("Sentinel [KOBJ] TID=%d setns() denied for monitored process",
+             tid);
   deny_action(tgid, tid, 0, 0, 0, 308, EVENT_KOBJ_DENY);
   return 0;
 }
@@ -628,20 +619,21 @@ int BPF_PROG(sentinel_fork_track, struct task_struct *parent,
 }
 
 SEC("lsm/socket_connect")
-int BPF_PROG(sentinel_socket_connect, struct socket *sock, struct sockaddr *address, int addrlen)
-{
-    if (address->sa_family != AF_INET)
-        return 0;
+int BPF_PROG(sentinel_socket_connect, struct socket *sock,
+             struct sockaddr *address, int addrlen) {
+  if (address->sa_family != AF_INET)
+    return 0;
 
-    struct sockaddr_in *addr_in = (struct sockaddr_in *)address;
-    __u32 dest_ip = addr_in->sin_addr.s_addr;
+  struct sockaddr_in *addr_in = (struct sockaddr_in *)address;
+  __u32 dest_ip = addr_in->sin_addr.s_addr;
 
-    __u32 *blocked = bpf_map_lookup_elem(&blocklist_map, &dest_ip);
-    if (blocked && *blocked == 1) {
-        bpf_printk("Sentinel [LSM-BLOCK] Outbound connection denied to %x", dest_ip);
-        return -EPERM;
-    }
-    return 0; // Allow by default
+  __u32 *blocked = bpf_map_lookup_elem(&blocklist_map, &dest_ip);
+  if (blocked && *blocked == 1) {
+    bpf_printk("Sentinel [LSM-BLOCK] Outbound connection denied to %x",
+               dest_ip);
+    return -EPERM;
+  }
+  return 0; // Allow by default
 }
 
 char LICENSE[] SEC("license") = "GPL";

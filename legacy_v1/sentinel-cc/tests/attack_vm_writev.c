@@ -6,7 +6,8 @@
 //
 // EXPECTED: Sentinel's fentry/__x64_sys_process_vm_writev hook fires as an
 //           UNCONDITIONAL BLOCK — the process is killed with SIGKILL regardless
-//           of policy. This syscall is never legitimate for Sentinel-protected code.
+//           of policy. This syscall is never legitimate for Sentinel-protected
+//           code.
 
 #define _GNU_SOURCE
 #include <stdio.h>
@@ -21,21 +22,20 @@ extern char __sentinel_signature[];
 static long raw_process_vm_writev(pid_t pid, const struct iovec *local,
                                   unsigned long liovcnt,
                                   const struct iovec *remote,
-                                  unsigned long riovcnt,
-                                  unsigned long flags) {
+                                  unsigned long riovcnt, unsigned long flags) {
   long ret;
   register long r10 __asm__("r10") = (long)remote;
-  register long r8  __asm__("r8")  = (long)riovcnt;
-  register long r9  __asm__("r9")  = (long)flags;
+  register long r8 __asm__("r8") = (long)riovcnt;
+  register long r9 __asm__("r9") = (long)flags;
   __asm__ volatile("syscall"
                    : "=a"(ret)
-                   : "a"(311),        // __NR_process_vm_writev
-                     "D"((long)pid),  // pid
-                     "S"(local),      // local_iov
-                     "d"(liovcnt),    // liovcnt
-                     "r"(r10),        // remote_iov
-                     "r"(r8),         // riovcnt
-                     "r"(r9)          // flags
+                   : "a"(311),       // __NR_process_vm_writev
+                     "D"((long)pid), // pid
+                     "S"(local),     // local_iov
+                     "d"(liovcnt),   // liovcnt
+                     "r"(r10),       // remote_iov
+                     "r"(r8),        // riovcnt
+                     "r"(r9)         // flags
                    : "rcx", "r11", "memory");
   return ret;
 }
@@ -52,8 +52,8 @@ int main() {
   char target_buf[64] = "ORIGINAL_DATA";
   const char *evil = "PWNED_BY_VM_WRITEV";
 
-  struct iovec local_iov  = { .iov_base = (void *)evil, .iov_len = strlen(evil) };
-  struct iovec remote_iov = { .iov_base = target_buf,   .iov_len = strlen(evil) };
+  struct iovec local_iov = {.iov_base = (void *)evil, .iov_len = strlen(evil)};
+  struct iovec remote_iov = {.iov_base = target_buf, .iov_len = strlen(evil)};
 
   pid_t self = getpid();
   printf("[Attack] PID=%d, writing to buffer at %p...\n", self, target_buf);
@@ -68,7 +68,8 @@ int main() {
     printf("[FAIL] Cross-process memory write is UNBLOCKED!\n");
     return 1;
   } else {
-    printf("[OK] process_vm_writev failed (ret=%ld) — Sentinel blocked it.\n", ret);
+    printf("[OK] process_vm_writev failed (ret=%ld) — Sentinel blocked it.\n",
+           ret);
     return 0;
   }
 }

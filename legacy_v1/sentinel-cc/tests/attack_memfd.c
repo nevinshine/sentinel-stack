@@ -43,13 +43,17 @@ int main() {
   // Step 1: memfd_create — this is the attack vector Sentinel should block
   long fd = raw_memfd_create("evil_payload", MFD_CLOEXEC);
   if (fd < 0) {
-    printf("[OK] memfd_create failed (ret=%ld) — Sentinel may have blocked it.\n", fd);
+    printf(
+        "[OK] memfd_create failed (ret=%ld) — Sentinel may have blocked it.\n",
+        fd);
     printf("[OK] If we weren't killed, the syscall was denied.\n");
     return 0;
   }
 
   printf("[FAIL] memfd_create succeeded! fd=%ld\n", fd);
-  printf("[FAIL] An attacker could now write an ELF and execve /proc/self/fd/%ld\n", fd);
+  printf("[FAIL] An attacker could now write an ELF and execve "
+         "/proc/self/fd/%ld\n",
+         fd);
 
   // Step 2: Write payload (demonstrate the threat)
   const char *payload = "#!/bin/echo PWNED";

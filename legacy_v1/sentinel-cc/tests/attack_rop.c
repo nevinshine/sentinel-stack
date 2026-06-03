@@ -10,7 +10,8 @@
 //         gadget. Call-Stack CFI (Phase 2.2) should catch the invalid caller.
 //
 // EXPECTED: Sentinel KILLS this because the 'syscall' at the gadget offset
-//           is called from an unauthorized location (main, not whitelisted_write).
+//           is called from an unauthorized location (main, not
+//           whitelisted_write).
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,17 +25,18 @@ __attribute__((noinline)) void whitelisted_write(const char *msg, int len) {
   long ret;
   asm volatile("syscall"
                : "=a"(ret)
-               : "a"(1),    // write
-                 "D"(1),    // stdout
-                 "S"(msg),  // buf
-                 "d"(len)   // count
+               : "a"(1),   // write
+                 "D"(1),   // stdout
+                 "S"(msg), // buf
+                 "d"(len)  // count
                : "rcx", "r11", "memory");
 }
 
 // Attacker's target: a function that SHOULD NOT be allowed to invoke the
 // whitelisted syscall gadget directly
 __attribute__((noinline)) void attacker_controlled() {
-  const char *evil_msg = "[FAIL] ROP gadget reuse succeeded! Sentinel FAILED.\n";
+  const char *evil_msg =
+      "[FAIL] ROP gadget reuse succeeded! Sentinel FAILED.\n";
 
   // In a real ROP attack, the attacker would overwrite a return address on the
   // stack to jump to the 'syscall' instruction inside whitelisted_write.
@@ -57,7 +59,8 @@ int main() {
   const char *safe = "[OK] Legitimate write succeeded.\n";
   whitelisted_write(safe, strlen(safe));
 
-  printf("[Attack] Step 2: Simulated ROP — calling from unauthorized site...\n");
+  printf(
+      "[Attack] Step 2: Simulated ROP — calling from unauthorized site...\n");
   fflush(stdout);
 
   // This simulates a ROP gadget reuse — same syscall, wrong caller

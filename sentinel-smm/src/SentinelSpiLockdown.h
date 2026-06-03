@@ -15,8 +15,8 @@
 #ifndef _SENTINEL_SPI_LOCKDOWN_H
 #define _SENTINEL_SPI_LOCKDOWN_H
 
-#include <Library/PciLib.h>
 #include <Library/IoLib.h>
+#include <Library/PciLib.h>
 
 // ============================================================================
 // LPC/eSPI Controller — PCI Configuration Space
@@ -27,15 +27,16 @@
 // protection registers on ICH9 and all modern Intel PCH variants.
 //
 
-#define LPC_BUS      0
-#define LPC_DEV      31
-#define LPC_FUNC     0
+#define LPC_BUS 0
+#define LPC_DEV 31
+#define LPC_FUNC 0
 
 //
 // Macro to construct a PCI_LIB_ADDRESS for the LPC controller.
 // Usage: PciRead32(LPC_PCI_ADDR(Offset))
 //
-#define LPC_PCI_ADDR(Offset)  PCI_LIB_ADDRESS(LPC_BUS, LPC_DEV, LPC_FUNC, (Offset))
+#define LPC_PCI_ADDR(Offset)                                                   \
+  PCI_LIB_ADDRESS(LPC_BUS, LPC_DEV, LPC_FUNC, (Offset))
 
 // ============================================================================
 // BIOS_CNTL Register (PCI Offset 0xDC)
@@ -66,10 +67,10 @@
 //                     timing attacks and race conditions.
 //
 
-#define R_BIOS_CNTL         0xDC
+#define R_BIOS_CNTL 0xDC
 
-#define B_BIOS_CNTL_BIOSWE  BIT0
-#define B_BIOS_CNTL_BLE     BIT1
+#define B_BIOS_CNTL_BIOSWE BIT0
+#define B_BIOS_CNTL_BLE BIT1
 #define B_BIOS_CNTL_SMM_BWP BIT5
 
 // ============================================================================
@@ -85,10 +86,10 @@
 // The SPIBAR (SPI Base Address Register) is located at RCBA + 0x3800.
 //
 
-#define R_RCBA              0xF0
+#define R_RCBA 0xF0
 
-#define B_RCBA_ENABLE       BIT0
-#define RCBA_ADDR_MASK      0xFFFFC000U  // Bits 31:14
+#define B_RCBA_ENABLE BIT0
+#define RCBA_ADDR_MASK 0xFFFFC000U // Bits 31:14
 
 // ============================================================================
 // SPIBAR — SPI Controller MMIO Register Block
@@ -98,7 +99,7 @@
 // On ICH9, the SPI register block starts at RCBA + 0x3800.
 //
 
-#define SPIBAR_OFFSET       0x3800
+#define SPIBAR_OFFSET 0x3800
 
 // ============================================================================
 // HSFS — Hardware Sequencing Flash Status (SPIBAR + 0x04)
@@ -121,9 +122,9 @@
 //                      (Deferred to a future sprint per design review.)
 //
 
-#define R_HSFS              0x04
+#define R_HSFS 0x04
 
-#define B_HSFS_FLOCKDN      BIT15
+#define B_HSFS_FLOCKDN BIT15
 
 // ============================================================================
 // PR0-PR4 — Protected Range Registers (SPIBAR + 0x74 through 0x84)
@@ -148,14 +149,14 @@
 // hardware-backed guarantor of firmware integrity.
 //
 
-#define R_PR0               0x74
-#define R_PR1               0x78
-#define R_PR2               0x7C
-#define R_PR3               0x80
-#define R_PR4               0x84
+#define R_PR0 0x74
+#define R_PR1 0x78
+#define R_PR2 0x7C
+#define R_PR3 0x80
+#define R_PR4 0x84
 
-#define B_PR_WP_ENABLE      BIT15
-#define B_PR_RP_ENABLE      BIT31
+#define B_PR_WP_ENABLE BIT15
+#define B_PR_RP_ENABLE BIT31
 
 //
 // Macros to construct a PR register value from physical address bounds.
@@ -163,12 +164,11 @@
 // Usage: PR_VALUE(0x00600000, 0x007FFFFF, TRUE, FALSE)
 //   -> Protects SPI flash from 6MB to 8MB with write protection enabled.
 //
-#define PR_BASE(PhysAddr)   (((PhysAddr) >> 12) & 0x1FFF)
-#define PR_LIMIT(PhysAddr)  ((((PhysAddr) >> 12) & 0x1FFF) << 16)
-#define PR_VALUE(Base, Limit, WriteProtect, ReadProtect) \
-    (PR_BASE(Base) | PR_LIMIT(Limit) | \
-     ((WriteProtect) ? B_PR_WP_ENABLE : 0) | \
-     ((ReadProtect) ? B_PR_RP_ENABLE : 0))
+#define PR_BASE(PhysAddr) (((PhysAddr) >> 12) & 0x1FFF)
+#define PR_LIMIT(PhysAddr) ((((PhysAddr) >> 12) & 0x1FFF) << 16)
+#define PR_VALUE(Base, Limit, WriteProtect, ReadProtect)                       \
+  (PR_BASE(Base) | PR_LIMIT(Limit) | ((WriteProtect) ? B_PR_WP_ENABLE : 0) |   \
+   ((ReadProtect) ? B_PR_RP_ENABLE : 0))
 
 // ============================================================================
 // Flash Descriptor — ME Region Boundaries
@@ -185,10 +185,10 @@
 //   Bits 28:16  — Region Limit (4KB units)
 //
 
-#define R_FREG2_ME          0x58
+#define R_FREG2_ME 0x58
 
-#define FREG_BASE_MASK      0x00001FFFU
-#define FREG_LIMIT_MASK     0x1FFF0000U
-#define FREG_LIMIT_SHIFT    16
+#define FREG_BASE_MASK 0x00001FFFU
+#define FREG_LIMIT_MASK 0x1FFF0000U
+#define FREG_LIMIT_SHIFT 16
 
 #endif /* _SENTINEL_SPI_LOCKDOWN_H */

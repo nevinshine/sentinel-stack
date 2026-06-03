@@ -9,7 +9,7 @@
 #include <unistd.h>
 
 #define ITERATIONS 1000000
-#define WARMUP     1000
+#define WARMUP 1000
 
 int main(void) {
   int fd = open("/dev/null", O_WRONLY);
@@ -30,8 +30,8 @@ int main(void) {
 
   clock_gettime(CLOCK_MONOTONIC, &end);
 
-  long long elapsed_ns =
-      (end.tv_sec - start.tv_sec) * 1000000000LL + (end.tv_nsec - start.tv_nsec);
+  long long elapsed_ns = (end.tv_sec - start.tv_sec) * 1000000000LL +
+                         (end.tv_nsec - start.tv_nsec);
   long long avg_ns = elapsed_ns / ITERATIONS;
 
   printf("BENCH_ITERATIONS=%d\n", ITERATIONS);

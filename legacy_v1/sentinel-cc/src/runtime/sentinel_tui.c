@@ -19,14 +19,14 @@
 #define MAX_SYSCALLS 512
 
 // --- ANSI escape codes ---
-#define CLR     "\033[H\033[J"
-#define BOLD    "\033[1m"
-#define DIM     "\033[2m"
-#define RED     "\033[31m"
-#define GREEN   "\033[32m"
-#define YELLOW  "\033[33m"
-#define CYAN    "\033[36m"
-#define RESET   "\033[0m"
+#define CLR "\033[H\033[J"
+#define BOLD "\033[1m"
+#define DIM "\033[2m"
+#define RED "\033[31m"
+#define GREEN "\033[32m"
+#define YELLOW "\033[33m"
+#define CYAN "\033[36m"
+#define RESET "\033[0m"
 #define ERASE_LINE "\033[K"
 
 static volatile sig_atomic_t g_running = 1;
@@ -42,7 +42,7 @@ struct tui_event {
   unsigned int pid;
   unsigned int tid;
   unsigned int syscall_nr;
-  long ret;          // For FEXIT events
+  long ret; // For FEXIT events
   char rip[20];
   char offset[20];
   unsigned int module;
@@ -84,29 +84,52 @@ static int sys_stats_count = 0;
 
 static const char *syscall_name(unsigned int nr) {
   switch (nr) {
-  case 0:   return "read";
-  case 1:   return "write";
-  case 2:   return "open";
-  case 3:   return "close";
-  case 9:   return "mmap";
-  case 10:  return "mprotect";
-  case 16:  return "ioctl";
-  case 33:  return "dup2";
-  case 42:  return "connect";
-  case 46:  return "sendmsg";
-  case 56:  return "clone";
-  case 57:  return "fork";
-  case 59:  return "execve";
-  case 101: return "ptrace";
-  case 157: return "prctl";
-  case 257: return "openat";
-  case 311: return "vm_writev";
-  case 317: return "seccomp";
-  case 272: return "unshare";
-  case 308: return "setns";
-  case 319: return "memfd_create";
-  case 321: return "bpf";
-  default:  return NULL;
+  case 0:
+    return "read";
+  case 1:
+    return "write";
+  case 2:
+    return "open";
+  case 3:
+    return "close";
+  case 9:
+    return "mmap";
+  case 10:
+    return "mprotect";
+  case 16:
+    return "ioctl";
+  case 33:
+    return "dup2";
+  case 42:
+    return "connect";
+  case 46:
+    return "sendmsg";
+  case 56:
+    return "clone";
+  case 57:
+    return "fork";
+  case 59:
+    return "execve";
+  case 101:
+    return "ptrace";
+  case 157:
+    return "prctl";
+  case 257:
+    return "openat";
+  case 311:
+    return "vm_writev";
+  case 317:
+    return "seccomp";
+  case 272:
+    return "unshare";
+  case 308:
+    return "setns";
+  case 319:
+    return "memfd_create";
+  case 321:
+    return "bpf";
+  default:
+    return NULL;
   }
 }
 
@@ -126,16 +149,20 @@ static struct syscall_stats *get_stats(unsigned int nr) {
 }
 
 // Minimal JSON string value extraction (no external dependency)
-static int json_get_str(const char *json, const char *key, char *out, size_t max) {
+static int json_get_str(const char *json, const char *key, char *out,
+                        size_t max) {
   char pat[64];
   snprintf(pat, sizeof(pat), "\"%s\":\"", key);
   const char *p = strstr(json, pat);
-  if (!p) return 0;
+  if (!p)
+    return 0;
   p += strlen(pat);
   const char *end = strchr(p, '"');
-  if (!end) return 0;
+  if (!end)
+    return 0;
   size_t len = (size_t)(end - p);
-  if (len >= max) len = max - 1;
+  if (len >= max)
+    len = max - 1;
   memcpy(out, p, len);
   out[len] = '\0';
   return 1;
@@ -145,9 +172,11 @@ static int json_get_uint(const char *json, const char *key, unsigned int *out) {
   char pat[64];
   snprintf(pat, sizeof(pat), "\"%s\":", key);
   const char *p = strstr(json, pat);
-  if (!p) return 0;
+  if (!p)
+    return 0;
   p += strlen(pat);
-  while (*p == ' ') p++;
+  while (*p == ' ')
+    p++;
   if (*p == '"') {
     // String-encoded number (e.g., "0x...")
     return 0;
@@ -160,9 +189,11 @@ static int json_get_long(const char *json, const char *key, long *out) {
   char pat[64];
   snprintf(pat, sizeof(pat), "\"%s\":", key);
   const char *p = strstr(json, pat);
-  if (!p) return 0;
+  if (!p)
+    return 0;
   p += strlen(pat);
-  while (*p == ' ') p++;
+  while (*p == ' ')
+    p++;
   *out = strtol(p, NULL, 10);
   return 1;
 }
@@ -187,16 +218,19 @@ static int parse_event(const char *line, struct tui_event *evt) {
 static void update_stats(const struct tui_event *evt) {
   total_events++;
 
-  if (strcmp(evt->action, "ALLOW") == 0 || strcmp(evt->action, "ALLOW+CFI") == 0) {
+  if (strcmp(evt->action, "ALLOW") == 0 ||
+      strcmp(evt->action, "ALLOW+CFI") == 0) {
     total_allow++;
     if (strcmp(evt->action, "ALLOW+CFI") == 0)
       total_cfi_ok++;
     struct syscall_stats *s = get_stats(evt->syscall_nr);
-    if (s) s->allow_count++;
+    if (s)
+      s->allow_count++;
   } else if (strcmp(evt->action, "BLOCK") == 0) {
     total_block++;
     struct syscall_stats *s = get_stats(evt->syscall_nr);
-    if (s) s->block_count++;
+    if (s)
+      s->block_count++;
   } else if (strcmp(evt->action, "CFI-FAIL") == 0) {
     total_cfi_fail++;
     total_block++;
@@ -208,7 +242,8 @@ static void update_stats(const struct tui_event *evt) {
   } else if (strcmp(evt->action, "FEXIT") == 0) {
     total_fexit++;
     struct syscall_stats *s = get_stats(evt->syscall_nr);
-    if (s) s->fexit_count++;
+    if (s)
+      s->fexit_count++;
   } else if (strcmp(evt->action, "PERMISSIVE") == 0) {
     total_permissive++;
     total_block++;
@@ -274,30 +309,33 @@ static void render(void) {
 
   // Header bar
   printf(BOLD CYAN);
-  for (int i = 0; i < width; i++) putchar('=');
+  for (int i = 0; i < width; i++)
+    putchar('=');
   printf(RESET "\n");
   printf(BOLD "  Sentinel-CC Dashboard v%s" RESET, VERSION);
 
   // Uptime / event rate
   static time_t start_time = 0;
-  if (start_time == 0) start_time = time(NULL);
+  if (start_time == 0)
+    start_time = time(NULL);
   time_t elapsed = time(NULL) - start_time;
   if (elapsed > 0) {
-    printf("  |  %lu events  |  %lu evt/s  |  uptime %lds",
-           total_events, total_events / (unsigned long)elapsed, (long)elapsed);
+    printf("  |  %lu events  |  %lu evt/s  |  uptime %lds", total_events,
+           total_events / (unsigned long)elapsed, (long)elapsed);
   }
   printf("\n");
 
   printf(BOLD CYAN);
-  for (int i = 0; i < width; i++) putchar('=');
+  for (int i = 0; i < width; i++)
+    putchar('=');
   printf(RESET "\n");
 
   // Summary counters
   printf(BOLD "  Counters:" RESET "\n");
-  printf("    " GREEN "ALLOW: %lu" RESET "  " RED "BLOCK: %lu" RESET
-         "  " GREEN "CFI-OK: %lu" RESET "  " RED "CFI-FAIL: %lu" RESET
-         "  " RED "NR-MISMATCH: %lu" RESET "  " CYAN "FORK: %lu" RESET
-         "  " YELLOW "FEXIT: %lu" RESET,
+  printf("    " GREEN "ALLOW: %lu" RESET "  " RED "BLOCK: %lu" RESET "  " GREEN
+         "CFI-OK: %lu" RESET "  " RED "CFI-FAIL: %lu" RESET "  " RED
+         "NR-MISMATCH: %lu" RESET "  " CYAN "FORK: %lu" RESET "  " YELLOW
+         "FEXIT: %lu" RESET,
          total_allow, total_block, total_cfi_ok, total_cfi_fail,
          total_nr_mismatch, total_fork, total_fexit);
   if (total_permissive > 0)
@@ -328,10 +366,10 @@ static void render(void) {
         snprintf(label, sizeof(label), "%s(%u)", name, sys_stats[i].nr);
       else
         snprintf(label, sizeof(label), "NR=%u", sys_stats[i].nr);
-      printf("    %-14s " GREEN "%10lu" RESET " " RED "%10lu" RESET
-             " " YELLOW "%10lu" RESET "\n",
-             label, sys_stats[i].allow_count,
-             sys_stats[i].block_count, sys_stats[i].fexit_count);
+      printf("    %-14s " GREEN "%10lu" RESET " " RED "%10lu" RESET " " YELLOW
+             "%10lu" RESET "\n",
+             label, sys_stats[i].allow_count, sys_stats[i].block_count,
+             sys_stats[i].fexit_count);
       shown++;
     }
     printf("\n");
@@ -339,12 +377,14 @@ static void render(void) {
 
   // Recent events (live tail)
   int avail = height - 16 - (sys_stats_count > 0 ? sys_stats_count + 4 : 0);
-  if (avail < 3) avail = 3;
-  if (avail > history_count) avail = history_count;
+  if (avail < 3)
+    avail = 3;
+  if (avail > history_count)
+    avail = history_count;
 
   printf(BOLD "  Recent Events (%d shown):" RESET "\n", avail);
-  printf(DIM "    %-12s %-6s %-6s %-3s %-14s %-12s" RESET "\n",
-         "Action", "PID", "TID", "NR", "RIP", "Offset/Ret");
+  printf(DIM "    %-12s %-6s %-6s %-3s %-14s %-12s" RESET "\n", "Action", "PID",
+         "TID", "NR", "RIP", "Offset/Ret");
 
   for (int i = 0; i < avail; i++) {
     // Read backwards from ring buffer
@@ -353,13 +393,11 @@ static void render(void) {
     const char *color = action_color(e->action);
 
     if (e->is_fexit) {
-      printf("    %s%-12s" RESET " %-6u %-6u %-3u %-14s ret=%-ld\n",
-             color, e->action, e->pid, e->tid, e->syscall_nr,
-             "-", e->ret);
+      printf("    %s%-12s" RESET " %-6u %-6u %-3u %-14s ret=%-ld\n", color,
+             e->action, e->pid, e->tid, e->syscall_nr, "-", e->ret);
     } else {
-      printf("    %s%-12s" RESET " %-6u %-6u %-3u %-14s %s\n",
-             color, e->action, e->pid, e->tid, e->syscall_nr,
-             e->rip[0] ? e->rip : "-",
+      printf("    %s%-12s" RESET " %-6u %-6u %-3u %-14s %s\n", color, e->action,
+             e->pid, e->tid, e->syscall_nr, e->rip[0] ? e->rip : "-",
              e->offset[0] ? e->offset : "-");
     }
   }
@@ -369,15 +407,18 @@ static void render(void) {
 }
 
 int main(int argc, char **argv) {
-  if (argc > 1 && (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0)) {
+  if (argc > 1 &&
+      (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0)) {
     printf("Sentinel-CC Terminal Dashboard v%s\n\n", VERSION);
-    printf("Usage: sentinel-loader --audit --audit-format=json ./binary | %s\n\n",
-           argv[0]);
+    printf(
+        "Usage: sentinel-loader --audit --audit-format=json ./binary | %s\n\n",
+        argv[0]);
     printf("Reads JSON audit events from stdin and displays a live terminal\n");
     printf("dashboard with counters, per-syscall breakdown, and event tail.\n");
     return 0;
   }
-  if (argc > 1 && (strcmp(argv[1], "--version") == 0 || strcmp(argv[1], "-v") == 0)) {
+  if (argc > 1 &&
+      (strcmp(argv[1], "--version") == 0 || strcmp(argv[1], "-v") == 0)) {
     printf("Sentinel-CC Terminal Dashboard v%s\n", VERSION);
     return 0;
   }
@@ -388,8 +429,9 @@ int main(int argc, char **argv) {
   // Detect if stdin is a terminal (no pipe)
   if (isatty(STDIN_FILENO)) {
     fprintf(stderr, "sentinel-tui: no input detected.\n");
-    fprintf(stderr, "Usage: sentinel-loader --audit --audit-format=json ./binary"
-                    " | sentinel-tui\n");
+    fprintf(stderr,
+            "Usage: sentinel-loader --audit --audit-format=json ./binary"
+            " | sentinel-tui\n");
     return 1;
   }
 
@@ -401,8 +443,10 @@ int main(int argc, char **argv) {
   while (g_running && fgets(line, sizeof(line), stdin)) {
     // Skip lines that aren't JSON
     char *p = line;
-    while (*p == ' ' || *p == '\t') p++;
-    if (*p != '{') continue;
+    while (*p == ' ' || *p == '\t')
+      p++;
+    if (*p != '{')
+      continue;
 
     struct tui_event evt;
     if (parse_event(p, &evt)) {

@@ -7,8 +7,9 @@
 // 4. The child performs syscalls that must be validated against policy
 //
 // EXPECTED: Both parent and child complete successfully — all syscalls ALLOW'd.
-//           Without fork tracking, the child's PID wouldn't be in target_pid_map
-//           and Sentinel would ignore it (no enforcement = security gap).
+//           Without fork tracking, the child's PID wouldn't be in
+//           target_pid_map and Sentinel would ignore it (no enforcement =
+//           security gap).
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,8 +33,9 @@ int main() {
 
   if (child == 0) {
     // Child process — Sentinel should auto-enroll via sched_process_fork
-    printf("[Fork] Child PID=%d (forked from parent). Sentinel should track me.\n",
-           getpid());
+    printf(
+        "[Fork] Child PID=%d (forked from parent). Sentinel should track me.\n",
+        getpid());
     fflush(stdout);
 
     // Perform some syscalls that Sentinel hooks
@@ -41,7 +43,8 @@ int main() {
     if (fp) {
       fprintf(fp, "Child writing to /dev/null.\n");
       fclose(fp);
-      printf("[Fork] Child: fopen+fprintf+fclose succeeded. Sentinel allowed it.\n");
+      printf("[Fork] Child: fopen+fprintf+fclose succeeded. Sentinel allowed "
+             "it.\n");
     } else {
       printf("[Fork] Child: fopen failed (may have been blocked).\n");
     }
@@ -62,11 +65,13 @@ int main() {
   waitpid(child, &status, 0);
 
   if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-    printf("[Fork] Parent: child exited cleanly (code=0). Fork tracking verified!\n");
+    printf("[Fork] Parent: child exited cleanly (code=0). Fork tracking "
+           "verified!\n");
   } else if (WIFSIGNALED(status)) {
     printf("[Fork] Parent: child killed by signal %d.\n", WTERMSIG(status));
     if (WTERMSIG(status) == 9) {
-      printf("[Fork] FAIL: Child was SIGKILL'd — fork tracking may not be working.\n");
+      printf("[Fork] FAIL: Child was SIGKILL'd — fork tracking may not be "
+             "working.\n");
       printf("[Fork] The child's PID was not enrolled in target_pid_map.\n");
       return 1;
     }

@@ -18,14 +18,13 @@
 extern char __sentinel_signature[];
 
 // Inline syscall for seccomp (NR=317)
-static long raw_seccomp(unsigned int operation, unsigned int flags, void *args) {
+static long raw_seccomp(unsigned int operation, unsigned int flags,
+                        void *args) {
   long ret;
   __asm__ volatile("syscall"
                    : "=a"(ret)
-                   : "a"(317),           // __NR_seccomp
-                     "D"((long)operation),
-                     "S"((long)flags),
-                     "d"(args)
+                   : "a"(317), // __NR_seccomp
+                     "D"((long)operation), "S"((long)flags), "d"(args)
                    : "rcx", "r11", "memory");
   return ret;
 }
@@ -41,7 +40,8 @@ int main() {
   printf("[Attack] This would interfere with Sentinel's enforcement.\n");
   fflush(stdout);
 
-  // Step 1: Try seccomp STRICT mode (simplest — only allows read/write/exit/_exit)
+  // Step 1: Try seccomp STRICT mode (simplest — only allows
+  // read/write/exit/_exit)
   printf("[Attack] Calling seccomp(SECCOMP_SET_MODE_STRICT)...\n");
   fflush(stdout);
 
@@ -49,11 +49,13 @@ int main() {
   long ret = raw_seccomp(SECCOMP_SET_MODE_STRICT, 0, NULL);
 
   if (ret == 0) {
-    printf("[FAIL] seccomp STRICT mode installed! Sentinel FAILED to block it.\n");
+    printf(
+        "[FAIL] seccomp STRICT mode installed! Sentinel FAILED to block it.\n");
     printf("[FAIL] An attacker could now install arbitrary seccomp filters.\n");
     // In strict mode, only read/write/_exit/sigreturn are allowed
     // We can still write to report the failure
-    const char *msg = "[FAIL] Seccomp is active — Sentinel's hooks may be bypassed!\n";
+    const char *msg =
+        "[FAIL] Seccomp is active — Sentinel's hooks may be bypassed!\n";
     write(STDOUT_FILENO, msg, 63);
     _exit(1);
   } else {

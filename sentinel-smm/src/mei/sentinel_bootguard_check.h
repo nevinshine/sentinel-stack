@@ -25,10 +25,10 @@
  */
 #define MSR_BOOT_GUARD_SACM_INFO 0x13A
 
-#define B_BOOT_GUARD_NEM_ENABLED        (1ULL << 0)
-#define B_BOOT_GUARD_MEASURED_BOOT      (1ULL << 1)
-#define B_BOOT_GUARD_VERIFIED_BOOT      (1ULL << 2)
-#define B_BOOT_GUARD_ENABLE             (1ULL << 4)
+#define B_BOOT_GUARD_NEM_ENABLED (1ULL << 0)
+#define B_BOOT_GUARD_MEASURED_BOOT (1ULL << 1)
+#define B_BOOT_GUARD_VERIFIED_BOOT (1ULL << 2)
+#define B_BOOT_GUARD_ENABLE (1ULL << 4)
 
 /*
  * Checks if Boot Guard Verified Boot is actively enforcing the ME/BIOS

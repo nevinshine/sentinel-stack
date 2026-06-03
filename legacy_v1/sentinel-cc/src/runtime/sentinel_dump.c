@@ -18,7 +18,7 @@
 struct policy_entry {
   uint64_t site_addr;
   uint64_t func_addr;
-  int64_t  syscall_nr;
+  int64_t syscall_nr;
 };
 
 // Must match compiler pass output layout
@@ -30,26 +30,46 @@ struct cfi_entry {
 // Well-known syscall names for x86-64
 static const char *syscall_name(int nr) {
   switch (nr) {
-  case 0:   return "read";
-  case 1:   return "write";
-  case 2:   return "open";
-  case 3:   return "close";
-  case 9:   return "mmap";
-  case 10:  return "mprotect";
-  case 16:  return "ioctl";
-  case 33:  return "dup2";
-  case 42:  return "connect";
-  case 46:  return "sendmsg";
-  case 56:  return "clone";
-  case 57:  return "fork";
-  case 59:  return "execve";
-  case 101: return "ptrace";
-  case 157: return "prctl";
-  case 257: return "openat";
-  case 311: return "process_vm_writev";
-  case 317: return "seccomp";
-  case 319: return "memfd_create";
-  default:  return NULL;
+  case 0:
+    return "read";
+  case 1:
+    return "write";
+  case 2:
+    return "open";
+  case 3:
+    return "close";
+  case 9:
+    return "mmap";
+  case 10:
+    return "mprotect";
+  case 16:
+    return "ioctl";
+  case 33:
+    return "dup2";
+  case 42:
+    return "connect";
+  case 46:
+    return "sendmsg";
+  case 56:
+    return "clone";
+  case 57:
+    return "fork";
+  case 59:
+    return "execve";
+  case 101:
+    return "ptrace";
+  case 157:
+    return "prctl";
+  case 257:
+    return "openat";
+  case 311:
+    return "process_vm_writev";
+  case 317:
+    return "seccomp";
+  case 319:
+    return "memfd_create";
+  default:
+    return NULL;
   }
 }
 
@@ -88,11 +108,10 @@ static void dump_sentinel(Elf_Data *data, uint64_t text_vaddr) {
     return;
   }
 
-  printf("  %-6s %-18s %-18s %-10s %s\n",
-         "Index", "Site Address", "Function", "Offset", "Syscall");
-  printf("  %-6s %-18s %-18s %-10s %s\n",
-         "-----", "------------------", "------------------",
-         "----------", "-------");
+  printf("  %-6s %-18s %-18s %-10s %s\n", "Index", "Site Address", "Function",
+         "Offset", "Syscall");
+  printf("  %-6s %-18s %-18s %-10s %s\n", "-----", "------------------",
+         "------------------", "----------", "-------");
 
   for (size_t i = 0; i < count; i++) {
     int64_t nr_raw = entries[i].syscall_nr;
@@ -100,10 +119,9 @@ static void dump_sentinel(Elf_Data *data, uint64_t text_vaddr) {
     const char *name = (nr >= 0) ? syscall_name(nr) : NULL;
     uint64_t offset = entries[i].site_addr - text_vaddr;
 
-    printf("  [%3zu]  0x%016lx 0x%016lx 0x%08lx",
-           i, (unsigned long)entries[i].site_addr,
-           (unsigned long)entries[i].func_addr,
-           (unsigned long)offset);
+    printf("  [%3zu]  0x%016lx 0x%016lx 0x%08lx", i,
+           (unsigned long)entries[i].site_addr,
+           (unsigned long)entries[i].func_addr, (unsigned long)offset);
 
     if (nr >= 0) {
       if (name)
@@ -141,15 +159,14 @@ static void dump_cfi(Elf_Data *data, uint64_t text_vaddr) {
     return;
   }
 
-  printf("  %-6s %-18s %-18s %-12s %-12s\n",
-         "Index", "Syscall Site", "Caller Func", "Site Off", "Func Off");
-  printf("  %-6s %-18s %-18s %-12s %-12s\n",
-         "-----", "------------------", "------------------",
-         "------------", "------------");
+  printf("  %-6s %-18s %-18s %-12s %-12s\n", "Index", "Syscall Site",
+         "Caller Func", "Site Off", "Func Off");
+  printf("  %-6s %-18s %-18s %-12s %-12s\n", "-----", "------------------",
+         "------------------", "------------", "------------");
 
   for (size_t i = 0; i < count; i++) {
-    printf("  [%3zu]  0x%016lx 0x%016lx 0x%08lx   0x%08lx\n",
-           i, (unsigned long)entries[i].site_addr,
+    printf("  [%3zu]  0x%016lx 0x%016lx 0x%08lx   0x%08lx\n", i,
+           (unsigned long)entries[i].site_addr,
            (unsigned long)entries[i].func_addr,
            (unsigned long)(entries[i].site_addr - text_vaddr),
            (unsigned long)(entries[i].func_addr - text_vaddr));
@@ -213,12 +230,15 @@ static void dump_signature(Elf_Data *data) {
   // Check if all zeros (unsigned)
   int is_zero = 1;
   for (size_t i = 0; i < len; i++) {
-    if (sig[i] != 0) { is_zero = 0; break; }
+    if (sig[i] != 0) {
+      is_zero = 0;
+      break;
+    }
   }
 
   if (json_mode) {
-    printf("  \"signature\": {\"size\":%zu,\"signed\":%s,\"hex\":\"",
-           len, is_zero ? "false" : "true");
+    printf("  \"signature\": {\"size\":%zu,\"signed\":%s,\"hex\":\"", len,
+           is_zero ? "false" : "true");
     for (size_t i = 0; i < len && i < 32; i++)
       printf("%02x", sig[i]);
     if (len > 32)
@@ -228,7 +248,9 @@ static void dump_signature(Elf_Data *data) {
   }
 
   printf("  Size: %zu bytes (%s)\n", len,
-         len == 64 ? "Ed25519" : len == 256 ? "RSA-2048 (legacy)" : "unknown");
+         len == 64    ? "Ed25519"
+         : len == 256 ? "RSA-2048 (legacy)"
+                      : "unknown");
   printf("  Status: %s\n", is_zero ? "UNSIGNED (all zeros)" : "SIGNED");
   printf("  Hex: ");
   for (size_t i = 0; i < len && i < 32; i++)
@@ -308,7 +330,8 @@ int main(int argc, char **argv) {
     GElf_Shdr shdr;
     gelf_getshdr(scn, &shdr);
     const char *name = elf_strptr(e, shstrndx, shdr.sh_name);
-    if (!name) continue;
+    if (!name)
+      continue;
 
     if (strcmp(name, ".text") == 0) {
       text_vaddr = shdr.sh_addr;
@@ -328,8 +351,9 @@ int main(int argc, char **argv) {
   }
 
   if (found == 0) {
-    fprintf(stderr, "No Sentinel sections found in '%s'.\n"
-                    "Was it compiled with -fpass-plugin=SentinelPass.so?\n",
+    fprintf(stderr,
+            "No Sentinel sections found in '%s'.\n"
+            "Was it compiled with -fpass-plugin=SentinelPass.so?\n",
             path);
     elf_end(e);
     close(fd);
@@ -337,26 +361,30 @@ int main(int argc, char **argv) {
   }
 
   if (json_mode) {
-    printf("{\n  \"binary\": \"%s\",\n  \"text_vaddr\": \"0x%lx\",\n",
-           path, (unsigned long)text_vaddr);
+    printf("{\n  \"binary\": \"%s\",\n  \"text_vaddr\": \"0x%lx\",\n", path,
+           (unsigned long)text_vaddr);
     int need_comma = 0;
     if (found & 1) {
-      if (need_comma) printf(",\n");
+      if (need_comma)
+        printf(",\n");
       dump_sentinel(sec_sentinel, text_vaddr);
       need_comma = 1;
     }
     if (found & 2) {
-      if (need_comma) printf(",\n");
+      if (need_comma)
+        printf(",\n");
       dump_cfi(sec_cfi, text_vaddr);
       need_comma = 1;
     }
     if (found & 4) {
-      if (need_comma) printf(",\n");
+      if (need_comma)
+        printf(",\n");
       dump_imports(sec_imports);
       need_comma = 1;
     }
     if (found & 8) {
-      if (need_comma) printf(",\n");
+      if (need_comma)
+        printf(",\n");
       dump_signature(sec_signature);
       need_comma = 1;
     }
@@ -367,22 +395,26 @@ int main(int argc, char **argv) {
     printf(".text vaddr: 0x%lx\n\n", (unsigned long)text_vaddr);
 
     if (found & 1) {
-      printf("── .sentinel (Syscall Policy) ─────────────────────────────────\n");
+      printf(
+          "── .sentinel (Syscall Policy) ─────────────────────────────────\n");
       dump_sentinel(sec_sentinel, text_vaddr);
       printf("\n");
     }
     if (found & 2) {
-      printf("── .sentinel_cfi (CFI Caller Ranges) ──────────────────────────\n");
+      printf(
+          "── .sentinel_cfi (CFI Caller Ranges) ──────────────────────────\n");
       dump_cfi(sec_cfi, text_vaddr);
       printf("\n");
     }
     if (found & 4) {
-      printf("── .sentinel_imports (External Functions) ─────────────────────\n");
+      printf(
+          "── .sentinel_imports (External Functions) ─────────────────────\n");
       dump_imports(sec_imports);
       printf("\n");
     }
     if (found & 8) {
-      printf("── .signature ──────────────────────────────────────────────────\n");
+      printf(
+          "── .signature ──────────────────────────────────────────────────\n");
       dump_signature(sec_signature);
       printf("\n");
     }
