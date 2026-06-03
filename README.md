@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" />
 </p>
 
-> **Note:** The Sentinel Stack is an exploratory research project. All components are at varying stages of maturity, ranging from experimental to alpha prototypes.
+> **Note:** This is an exploratory research prototype; security guarantees are experimental. Each subsystem is under development; see Maturity section.
 
 The Sentinel Stack is an experimental systems architecture designed to constrain the semantic gap between high-level program intent and low-level hardware execution.
 
@@ -121,7 +121,7 @@ The simulated eBPF hook incurred an overhead of **421 cycles**, serving as a hig
 
 ---
 
-## Research Status
+## Maturity
 
 The Sentinel Stack is an exploratory research project. The components represent varying levels of maturity:
 

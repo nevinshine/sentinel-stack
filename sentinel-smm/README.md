@@ -6,10 +6,7 @@ Sentinel SMM (System Management Mode) provides a hardware-enforced root of trust
 
 ## Threat Model
 
-Sentinel SMM protects the fundamental integrity of the hardware and early boot stages from persistent threats.
-**In Scope**: Malicious firmware implants, UEFI rootkits, and Ring 0 exploits attempting to corrupt SMM memory or subvert the boot process.
-**Assumptions**: The fundamental hardware root of trust (e.g., CPU microcode, eFuses) is intact. SMM memory (SMRAM) is properly locked by the chipset before booting the OS (e.g., D_LCK bit is set).
-**Out of Scope / Limitations**: Physical hardware supply chain attacks (e.g., malicious silicon or compromised physical SPI flash chips manipulated via hardware programmers) are out of scope.
+Threat model: We assume untrusted firmware may attempt rootkit injection in SMM; Sentinel-SMM intercepts SMIs to enforce policy, but cannot prevent physical attacks or insecure BIOS.
 
 ---
 
