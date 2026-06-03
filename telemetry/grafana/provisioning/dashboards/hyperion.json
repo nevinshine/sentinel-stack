@@ -1,0 +1,77 @@
+{
+  "title": "Hyperion XDP Observability",
+  "tags": ["hyperion", "xdp", "ebpf"],
+  "timezone": "browser",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Hardware NIC Drops (ethtool)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "rate(hyperion_hw_nic_drops_total[1m])",
+          "legendFormat": "{{stat}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Fast Path Drops (XDP)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "rate(hyperion_fastpath_drops_total[1m])",
+          "legendFormat": "CPU {{cpu}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Slow Path Drops (AF_XDP)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "rate(hyperion_slowpath_drops_total[1m])",
+          "legendFormat": "Queue {{queue}} - {{reason}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "AF_XDP Wakeup Latency Saturation",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, rate(hyperion_afxdp_wakeup_latency_ms_bucket[1m]))",
+          "legendFormat": "p99 Queue {{queue}}"
+        },
+        {
+          "expr": "histogram_quantile(0.50, rate(hyperion_afxdp_wakeup_latency_ms_bucket[1m]))",
+          "legendFormat": "p50 Queue {{queue}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "AF_XDP Rx Ring Full (Kernel Drops)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "rate(hyperion_afxdp_rx_dropped_total[1m])",
+          "legendFormat": "Queue {{queue}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Redirect Failures (Socket Unbound)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "expr": "rate(hyperion_redirect_failures_total[1m])",
+          "legendFormat": "CPU {{cpu}}"
+        }
+      ]
+    }
+  ]
+}

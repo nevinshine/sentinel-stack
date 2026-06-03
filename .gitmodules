@@ -5,7 +5,7 @@
 	path = legacy_v1/telos-runtime
 	url = https://github.com/nevinshine/telos-runtime.git
 [submodule "hyperion-xdp"]
-	path = legacy_v1/hyperion-xdp
+	path = hyperion-xdp
 	url = https://github.com/nevinshine/hyperion-xdp.git
 [submodule "telos-lang"]
 	path = telos-lang
