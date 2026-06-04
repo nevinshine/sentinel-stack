@@ -10,3 +10,6 @@
 [submodule "telos-lang"]
 	path = telos-lang
 	url = https://github.com/nevinshine/telos-lang.git
+[submodule "tca-silicon"]
+	path = tca-silicon
+	url = https://github.com/nevinshine/tca-silicon.git
